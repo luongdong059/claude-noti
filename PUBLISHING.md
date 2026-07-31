@@ -120,7 +120,6 @@ npx vsce unpublish luongdong059.claude-noti
 | `File is not defined` khi chạy vsce | Đang chạy Node 18, xem mục Node ở trên |
 | Marketplace từ chối vì thiếu repository | Trường `repository` phải là URL git công khai hợp lệ |
 | Icon không hiện | Phải là PNG ít nhất 128×128 và được liệt kê trong file `.vsix` — chạy `npx vsce ls` để kiểm tra |
-| CI báo icon khác với bản sinh ra | Đã sửa `images/icon.png` bằng tay; chạy `node scripts/make-icon.mjs` rồi commit lại |
 
 ## 6. Những thứ CI đang kiểm
 
@@ -130,6 +129,5 @@ npx vsce unpublish luongdong059.claude-noti
 - `npm run lint` — ESLint
 - `npm run test:unit` — 55 unit test
 - `npx vsce package` — bắt sớm các lỗi metadata khiến Marketplace từ chối
-- Sinh lại icon và so sánh, đảm bảo `images/icon.png` luôn khớp với `scripts/make-icon.mjs`
 
 File `.vsix` của mỗi lần chạy được giữ làm artifact 14 ngày, tiện để thử bản build của một pull request mà không cần tự đóng gói.

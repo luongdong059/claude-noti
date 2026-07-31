@@ -5,7 +5,20 @@
  * beyond `hook_event_name` is treated as optional at runtime.
  */
 
-export const HANDLED_EVENTS = ['Notification', 'Stop'] as const;
+/**
+ * `PermissionRequest` carries the load here, not `Notification`.
+ *
+ * Claude Code raises `Notification` only when it has a desktop notification
+ * channel to send on, and it has none in the VS Code integrated terminal — so
+ * in the very setup this extension exists for, that event never fires. Testing
+ * against Claude Code 2.1.205 recorded five `PermissionRequest` events and zero
+ * `Notification` events across the same session. `PermissionRequest` fires from
+ * the permission system itself and is independent of any of that.
+ *
+ * `Notification` is still registered because it does fire in other terminals
+ * and covers idle and elicitation prompts that `PermissionRequest` does not.
+ */
+export const HANDLED_EVENTS = ['Notification', 'Stop', 'PermissionRequest'] as const;
 export type HandledEvent = (typeof HANDLED_EVENTS)[number];
 
 /** Notification types Claude Code emits that are worth interrupting the user for. */
@@ -30,6 +43,9 @@ export interface HookEvent {
   message?: string;
   /** Present on `Stop` events. */
   last_assistant_message?: string;
+  /** Present on `PermissionRequest` events. */
+  tool_name?: string;
+  tool_input?: Record<string, unknown>;
   /** Present only when the event came from a subagent rather than the main loop. */
   agent_id?: string;
   agent_type?: string;
@@ -73,6 +89,8 @@ export function parseHookEvent(raw: string): HookEvent | undefined {
     notification_type: optionalString(value.notification_type),
     message: optionalString(value.message),
     last_assistant_message: optionalString(value.last_assistant_message),
+    tool_name: optionalString(value.tool_name),
+    tool_input: isRecord(value.tool_input) ? value.tool_input : undefined,
     agent_id: optionalString(value.agent_id),
     agent_type: optionalString(value.agent_type),
   };

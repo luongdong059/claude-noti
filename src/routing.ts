@@ -123,6 +123,13 @@ const ALREADY_HANDLED_TYPES = new Set([
  * notification costs far less than a session sitting blocked for an hour.
  */
 export function passesEventPolicy(event: HookEvent, policy: EventPolicy): SkipReason | undefined {
+  // Claude Code only fires this when it is genuinely about to ask the user —
+  // tools allowed by a permission rule never reach it — so it needs no
+  // filtering of its own beyond the user's own toggle.
+  if (event.hook_event_name === 'PermissionRequest') {
+    return policy.permissionPrompt ? undefined : 'event-type-off';
+  }
+
   if (event.hook_event_name === 'Stop') {
     if (event.agent_id) {
       return 'subagent-stop';
@@ -164,10 +171,7 @@ const MAX_MESSAGE_LENGTH = 160;
 
 export function describe(event: HookEvent, contextLabel: string): NotificationContent {
   const subtitle = subtitleFor(event);
-  const body =
-    event.hook_event_name === 'Stop'
-      ? truncate(event.last_assistant_message ?? 'Claude finished this turn.', MAX_MESSAGE_LENGTH)
-      : truncate(event.message ?? 'Claude needs your attention.', MAX_MESSAGE_LENGTH);
+  const body = truncate(bodyFor(event), MAX_MESSAGE_LENGTH);
 
   return {
     title: contextLabel ? `Claude Code — ${contextLabel}` : 'Claude Code',
@@ -179,9 +183,46 @@ export function describe(event: HookEvent, contextLabel: string): NotificationCo
   };
 }
 
+function bodyFor(event: HookEvent): string {
+  if (event.hook_event_name === 'Stop') {
+    return event.last_assistant_message ?? 'Claude finished this turn.';
+  }
+  if (event.hook_event_name === 'PermissionRequest') {
+    return describeToolRequest(event);
+  }
+  return event.message ?? 'Claude needs your attention.';
+}
+
+/**
+ * Says what Claude is asking to do, so the notification is worth reading
+ * rather than just being an alert that something happened. `description` is
+ * Claude's own summary and reads better than the raw command, so it wins when
+ * present.
+ */
+function describeToolRequest(event: HookEvent): string {
+  const tool = event.tool_name ?? 'A tool';
+  if (tool === 'AskUserQuestion') {
+    return 'Claude is waiting for you to choose an option.';
+  }
+
+  const input = event.tool_input ?? {};
+  const field = (key: string): string | undefined =>
+    typeof input[key] === 'string' && (input[key] as string).length > 0
+      ? (input[key] as string)
+      : undefined;
+
+  const filePath = field('file_path') ?? field('path') ?? field('notebook_path');
+  const detail = field('description') ?? field('command') ?? (filePath && path.basename(filePath));
+
+  return detail ? `${tool}: ${detail}` : `${tool} needs your approval.`;
+}
+
 function subtitleFor(event: HookEvent): string {
   if (event.hook_event_name === 'Stop') {
     return 'Finished';
+  }
+  if (event.hook_event_name === 'PermissionRequest') {
+    return event.tool_name === 'AskUserQuestion' ? 'Waiting for your choice' : 'Waiting for permission';
   }
   switch (event.notification_type) {
     case 'permission_prompt':

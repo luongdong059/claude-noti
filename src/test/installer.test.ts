@@ -5,7 +5,10 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe as suite, test } from 'node:test';
 
 import { hookStatus, installHooks, uninstallHooks } from '../hooks/installer';
+import { HANDLED_EVENTS } from '../hooks/payload';
 import { HOOK_SCRIPT } from '../paths';
+
+const EVERY_EVENT = [...HANDLED_EVENTS].sort();
 
 /**
  * These exercise the riskiest code in the extension: it rewrites a
@@ -42,7 +45,7 @@ suite('installHooks', () => {
     assert.equal(result.file, settingsFile);
 
     const settings = read();
-    assert.deepEqual(Object.keys(settings.hooks).sort(), ['Notification', 'Stop']);
+    assert.deepEqual(Object.keys(settings.hooks).sort(), EVERY_EVENT);
     assert.equal(settings.hooks.Notification[0].hooks[0].command, HOOK_SCRIPT);
     assert.equal(settings.hooks.Notification[0].hooks[0].type, 'command');
   });
@@ -167,7 +170,7 @@ suite('hookStatus', () => {
     const status = hookStatus('project', root);
 
     assert.equal(status.installed, true);
-    assert.deepEqual(status.registeredEvents.sort(), ['Notification', 'Stop']);
+    assert.deepEqual(status.registeredEvents.sort(), EVERY_EVENT);
     assert.equal(status.settingsReadable, true);
   });
 

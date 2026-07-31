@@ -160,6 +160,69 @@ suite('passesEventPolicy', () => {
   test('rejects events we never registered for', () => {
     assert.equal(passesEventPolicy({ hook_event_name: 'PreToolUse' }, allOn), 'unhandled-event');
   });
+
+  test('allows a permission request', () => {
+    const event: HookEvent = { hook_event_name: 'PermissionRequest', tool_name: 'Bash' };
+    assert.equal(passesEventPolicy(event, allOn), undefined);
+    assert.equal(
+      passesEventPolicy(event, { ...allOn, permissionPrompt: false }),
+      'event-type-off',
+    );
+  });
+});
+
+suite('describe for a permission request', () => {
+  const label = 'proj';
+
+  test('prefers Claude’s own description of the command', () => {
+    const content = describe(
+      {
+        hook_event_name: 'PermissionRequest',
+        tool_name: 'Bash',
+        tool_input: { command: 'curl -sS https://example.com', description: 'Fetch example.com' },
+      },
+      label,
+    );
+    assert.equal(content.subtitle, 'Waiting for permission');
+    assert.equal(content.message, 'Bash: Fetch example.com');
+  });
+
+  test('falls back to the raw command', () => {
+    const content = describe(
+      { hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: { command: 'rm -rf x' } },
+      label,
+    );
+    assert.equal(content.message, 'Bash: rm -rf x');
+  });
+
+  test('names the file for an edit, without the full path', () => {
+    const content = describe(
+      {
+        hook_event_name: 'PermissionRequest',
+        tool_name: 'Edit',
+        tool_input: { file_path: '/a/b/c/router.ts' },
+      },
+      label,
+    );
+    assert.equal(content.message, 'Edit: router.ts');
+  });
+
+  test('says a choice is waiting for AskUserQuestion', () => {
+    const content = describe(
+      { hook_event_name: 'PermissionRequest', tool_name: 'AskUserQuestion' },
+      label,
+    );
+    assert.equal(content.subtitle, 'Waiting for your choice');
+    assert.equal(content.message, 'Claude is waiting for you to choose an option.');
+  });
+
+  test('copes with a tool it knows nothing about', () => {
+    const content = describe(
+      { hook_event_name: 'PermissionRequest', tool_name: 'mcp__x__y' },
+      label,
+    );
+    assert.equal(content.message, 'mcp__x__y needs your approval.');
+  });
 });
 
 suite('describe', () => {

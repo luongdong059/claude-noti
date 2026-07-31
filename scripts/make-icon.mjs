@@ -5,6 +5,11 @@
  * The icon is built from code rather than committed as an opaque binary so it
  * can be reviewed, tweaked and regenerated. Run `node scripts/make-icon.mjs`
  * after changing anything here.
+ *
+ * With `--check` it verifies the committed file still matches this source
+ * instead of writing. The comparison is on the decompressed pixels, not the
+ * file bytes: deflate output varies between zlib versions, so comparing bytes
+ * would fail on a CI runner for reasons that have nothing to do with the icon.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -134,7 +139,60 @@ const png = Buffer.concat([
 ]);
 
 const outDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'images');
-fs.mkdirSync(outDir, { recursive: true });
 const outFile = path.join(outDir, 'icon.png');
-fs.writeFileSync(outFile, png);
-console.log(`wrote ${outFile} (${png.length} bytes)`);
+
+if (process.argv.includes('--check')) {
+  let committed;
+  try {
+    committed = fs.readFileSync(outFile);
+  } catch {
+    console.error(`${outFile} is missing — run: node scripts/make-icon.mjs`);
+    process.exit(1);
+  }
+  let decoded;
+  try {
+    decoded = decode(committed);
+  } catch (err) {
+    console.error(`${outFile} is not a readable PNG: ${err.message}`);
+    console.error('run: node scripts/make-icon.mjs');
+    process.exit(1);
+  }
+  const { width, height, pixels: committedPixels } = decoded;
+  if (width !== SIZE || height !== SIZE) {
+    console.error(`${outFile} is ${width}x${height}, expected ${SIZE}x${SIZE}`);
+    process.exit(1);
+  }
+  if (!committedPixels.equals(raw)) {
+    console.error(`${outFile} does not match scripts/make-icon.mjs`);
+    console.error('run: node scripts/make-icon.mjs && git add images/icon.png');
+    process.exit(1);
+  }
+  console.log(`${outFile} matches the source (${SIZE}x${SIZE})`);
+} else {
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outFile, png);
+  console.log(`wrote ${outFile} (${png.length} bytes)`);
+}
+
+/** Reads back the dimensions and the raw scanlines of a PNG we produced. */
+function decode(buffer) {
+  let offset = 8; // skip the signature
+  let width = 0;
+  let height = 0;
+  const idat = [];
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString('ascii', offset + 4, offset + 8);
+    const data = buffer.subarray(offset + 8, offset + 8 + length);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+    } else if (type === 'IDAT') {
+      idat.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset += 12 + length;
+  }
+  return { width, height, pixels: zlib.inflateSync(Buffer.concat(idat)) };
+}

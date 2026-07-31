@@ -94,6 +94,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       muted: statusBar?.isMuted ?? false,
       notifier: notifier?.kind ?? 'none',
       folders: currentFolders(),
+      lastDecision: router.lastDecision,
     }),
   );
   try {

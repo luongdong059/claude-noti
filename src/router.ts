@@ -16,6 +16,23 @@ import {
   passesEventPolicy,
 } from './routing';
 
+/**
+ * What the router did with the most recent payload, and the inputs it decided
+ * on. Focus in particular changes from moment to moment, so sampling it from
+ * outside before or after an event says nothing about what the router saw —
+ * only a record taken at the decision itself can answer "why was I not
+ * notified?".
+ */
+export interface RoutingDecision {
+  at: string;
+  event: string;
+  notificationType?: string;
+  cwd?: string;
+  owner?: number;
+  focused: boolean;
+  outcome: 'notified' | SkipReason;
+}
+
 export interface RouterContext {
   pid: number;
   appPath: string | undefined;
@@ -38,11 +55,16 @@ export interface RouterContext {
 export class Router {
   private throttle: Throttle;
   private throttleWindowMs: number;
+  private last: RoutingDecision | undefined;
 
   constructor(private readonly context: RouterContext) {
     const settings = readSettings();
     this.throttleWindowMs = settings.minIntervalMs;
     this.throttle = new Throttle(this.throttleWindowMs);
+  }
+
+  get lastDecision(): RoutingDecision | undefined {
+    return this.last;
   }
 
   /** Rebuilds the throttle when the user changes the interval. */
@@ -55,8 +77,19 @@ export class Router {
   }
 
   handle(event: HookEvent): void {
-    const skip = this.evaluate(event);
+    const record: RoutingDecision = {
+      at: new Date().toISOString(),
+      event: event.hook_event_name,
+      notificationType: event.notification_type,
+      cwd: event.cwd,
+      focused: false,
+      outcome: 'notified',
+    };
+    this.last = record;
+
+    const skip = this.evaluate(event, record);
     if (skip) {
+      record.outcome = skip;
       log.debug('skipped', event.hook_event_name, event.notification_type ?? '', `(${skip})`);
       return;
     }
@@ -89,8 +122,11 @@ export class Router {
     );
   }
 
-  /** Returns the reason to skip, or `undefined` when the event should notify. */
-  private evaluate(event: HookEvent): SkipReason | undefined {
+  /**
+   * Returns the reason to skip, or `undefined` when the event should notify.
+   * Fills `record` with the inputs behind that answer as it goes.
+   */
+  private evaluate(event: HookEvent, record: RoutingDecision): SkipReason | undefined {
     const settings = readSettings();
 
     if (!settings.enabled) {
@@ -110,6 +146,7 @@ export class Router {
       }
       owner = fallbackClaimant(instances);
     }
+    record.owner = owner;
     if (owner !== this.context.pid) {
       return 'not-claimant';
     }
@@ -125,7 +162,10 @@ export class Router {
 
     // You are already looking at this window, so a system notification would
     // only be noise. A quiet in-window message keeps the signal without it.
-    if (settings.suppressWhenFocused && vscode.window.state.focused) {
+    // Sampled once and recorded, because focus changes between one moment and
+    // the next and the recorded value has to be the one actually acted on.
+    record.focused = vscode.window.state.focused;
+    if (settings.suppressWhenFocused && record.focused) {
       this.showInWindow(event);
       return 'window-focused';
     }

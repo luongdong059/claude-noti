@@ -98,11 +98,29 @@ export function fallbackClaimant(instances: InstanceRecord[]): number | undefine
 }
 
 /**
+ * Notification types that report something already dealt with. These are the
+ * only ones worth staying quiet about, so they are listed explicitly rather
+ * than being whatever falls through a switch.
+ */
+const ALREADY_HANDLED_TYPES = new Set([
+  'auth_success',
+  'elicitation_complete',
+  'elicitation_response',
+  'agent_completed',
+]);
+
+/**
  * Whether the user asked to be told about this kind of event.
  *
  * `Stop` events carrying an `agent_id` come from a subagent finishing rather
  * than the turn ending. A single turn can spawn many subagents, so surfacing
  * those would turn a useful signal into a stream of noise.
+ *
+ * A notification whose type is unrecognised — or missing, which older Claude
+ * Code builds do — is passed through rather than dropped. Claude Code only
+ * raises a Notification when it wants the user, and a missed permission prompt
+ * is precisely the failure this extension exists to prevent; an extra
+ * notification costs far less than a session sitting blocked for an hour.
  */
 export function passesEventPolicy(event: HookEvent, policy: EventPolicy): SkipReason | undefined {
   if (event.hook_event_name === 'Stop') {
@@ -124,11 +142,15 @@ export function passesEventPolicy(event: HookEvent, policy: EventPolicy): SkipRe
     case 'agent_needs_input':
     case 'elicitation_dialog':
       return policy.agentNeedsInput ? undefined : 'event-type-off';
-    default:
-      // auth_success, elicitation_complete, agent_completed and anything added
-      // later: not worth interrupting the user for.
-      return 'event-type-off';
   }
+
+  if (event.notification_type && ALREADY_HANDLED_TYPES.has(event.notification_type)) {
+    return 'event-type-off';
+  }
+
+  const wantsAnyNotification =
+    policy.permissionPrompt || policy.idlePrompt || policy.agentNeedsInput;
+  return wantsAnyNotification ? undefined : 'event-type-off';
 }
 
 export interface NotificationContent {

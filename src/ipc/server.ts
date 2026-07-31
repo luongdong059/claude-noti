@@ -21,6 +21,13 @@ export class IpcServer {
   constructor(
     private readonly pid: number,
     private readonly onEvent: (event: HookEvent) => void,
+    /**
+     * Live state reported by `/ping`. Whether a window considers itself
+     * focused decides whether it notifies at all, and that is invisible from
+     * outside the extension host — which makes "why did nothing happen?"
+     * impossible to answer without exposing it here.
+     */
+    private readonly status: () => Record<string, unknown> = () => ({}),
   ) {
     this.path = socketPath(pid);
   }
@@ -73,7 +80,7 @@ export class IpcServer {
 
   private handle(req: http.IncomingMessage, res: http.ServerResponse): void {
     if (req.method === 'GET' && req.url === '/ping') {
-      respond(res, 200, { ok: true, pid: this.pid });
+      respond(res, 200, { ok: true, pid: this.pid, ...this.status() });
       return;
     }
 

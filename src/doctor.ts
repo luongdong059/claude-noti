@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import * as http from 'node:http';
 
 import * as vscode from 'vscode';
 
@@ -83,7 +84,15 @@ export async function runDoctor(env: DoctorEnvironment): Promise<void> {
   lines.push(`known windows:       ${instances.length}`);
   for (const record of instances) {
     const self = record.pid === env.pid ? ' (this window)' : '';
-    lines.push(`  pid ${record.pid}${self}: ${record.workspaceFolders.join(', ') || '(no folder)'}`);
+    const state = await ping(record.socket);
+    // A window that is focused deliberately stays quiet, which is the single
+    // most common reason a notification "did not work" when everything else
+    // is configured correctly. Showing it here saves guessing.
+    const live = state
+      ? `focused=${state.focused} muted=${state.muted} v${state.version} notifier=${state.notifier}`
+      : 'not responding';
+    lines.push(`  pid ${record.pid}${self}: ${live}`);
+    lines.push(`      ${record.workspaceFolders.join(', ') || '(no folder)'}`);
   }
 
   lines.push('settings:');
@@ -118,6 +127,28 @@ export async function runDoctor(env: DoctorEnvironment): Promise<void> {
     ? 'Diagnostics written to the Claude Noti output channel.'
     : 'alerter is not installed — notifications cannot be clicked. See the output channel.';
   void vscode.window.showInformationMessage(summary);
+}
+
+/** Asks another window for its live state over its Unix domain socket. */
+function ping(socketPath: string): Promise<Record<string, unknown> | undefined> {
+  return new Promise((resolve) => {
+    const req = http.get({ socketPath, path: '/ping', timeout: 2000 }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+        } catch {
+          resolve(undefined);
+        }
+      });
+    });
+    req.on('error', () => resolve(undefined));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(undefined);
+    });
+  });
 }
 
 function alerterVersion(binary: string): Promise<string | undefined> {

@@ -116,9 +116,36 @@ suite('passesEventPolicy', () => {
     );
   });
 
-  test('ignores notification types that do not need the user', () => {
-    assert.equal(passesEventPolicy(notification('auth_success'), allOn), 'event-type-off');
-    assert.equal(passesEventPolicy(notification('agent_completed'), allOn), 'event-type-off');
+  test('ignores notification types that report something already handled', () => {
+    for (const type of [
+      'auth_success',
+      'agent_completed',
+      'elicitation_complete',
+      'elicitation_response',
+    ]) {
+      assert.equal(passesEventPolicy(notification(type), allOn), 'event-type-off', type);
+    }
+  });
+
+  test('passes a notification whose type is missing', () => {
+    // Older Claude Code builds omit notification_type. Dropping those would
+    // silently swallow the permission prompts this exists to surface.
+    assert.equal(passesEventPolicy({ hook_event_name: 'Notification' }, allOn), undefined);
+  });
+
+  test('passes a notification type it has never seen before', () => {
+    assert.equal(passesEventPolicy(notification('some_future_type'), allOn), undefined);
+  });
+
+  test('stays quiet about unknown types when every event is switched off', () => {
+    const allOff: EventPolicy = {
+      permissionPrompt: false,
+      idlePrompt: false,
+      agentNeedsInput: false,
+      stop: false,
+    };
+    assert.equal(passesEventPolicy(notification('some_future_type'), allOff), 'event-type-off');
+    assert.equal(passesEventPolicy({ hook_event_name: 'Notification' }, allOff), 'event-type-off');
   });
 
   test('allows the end of a turn', () => {

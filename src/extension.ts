@@ -85,7 +85,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     isMuted: () => statusBar?.isMuted ?? false,
   });
 
-  server = new IpcServer(pid, (event) => router.handle(event));
+  server = new IpcServer(
+    pid,
+    (event) => router.handle(event),
+    () => ({
+      version: context.extension.packageJSON.version,
+      focused: vscode.window.state.focused,
+      muted: statusBar?.isMuted ?? false,
+      notifier: notifier?.kind ?? 'none',
+      folders: currentFolders(),
+    }),
+  );
   try {
     await server.start();
     writeSelf(describeSelf(pid, server.socketPath, appPath, context.extension.packageJSON.version));

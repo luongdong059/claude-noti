@@ -27,7 +27,7 @@ Marketplace của VS Code xác thực qua Azure DevOps chứ không phải GitHu
 ### 1.3. Tạo publisher
 
 1. Vào https://marketplace.visualstudio.com/manage → **Create publisher**.
-2. **Publisher ID** phải trùng chính xác trường `publisher` trong [package.json](package.json), hiện đang là `luongdong059`. Nếu ID này đã có người lấy, đổi cả hai chỗ cho khớp.
+2. **Publisher ID** phải trùng chính xác trường `publisher` trong [package.json](package.json), hiện đang là `nldong`. Lưu ý đây là ID trên Marketplace, độc lập với tài khoản GitHub `luongdong059` — nếu `nldong` đã có người lấy thì phải đổi cả hai chỗ cho khớp.
 3. Điền display name, logo, mô tả.
 
 ### 1.4. Nạp token vào GitHub
@@ -100,15 +100,15 @@ npx vsce publish --pre-release
 Gỡ một phiên bản đã đăng nhầm (không xoá được hẳn, chỉ ẩn đi):
 
 ```sh
-npx vsce unpublish luongdong059.claude-noti
+npx vsce unpublish nldong.claude-noti
 ```
 
 ## 4. Kiểm tra sau khi phát hành
 
-- Trang extension: https://marketplace.visualstudio.com/items?itemName=luongdong059.claude-noti
+- Trang extension: https://marketplace.visualstudio.com/items?itemName=nldong.claude-noti
 - Mất khoảng 5–10 phút để hiện ra sau khi publish thành công.
 - Kiểm tra README hiển thị đúng, icon lên đúng, link repo bấm được.
-- Thử `code --install-extension luongdong059.claude-noti` trên một máy sạch.
+- Thử `code --install-extension nldong.claude-noti` trên một máy sạch.
 
 ## 5. Sự cố thường gặp
 

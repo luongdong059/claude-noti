@@ -2,8 +2,8 @@
   "name": "claude-noti",
   "displayName": "Claude Noti",
   "description": "macOS system notifications when Claude Code needs your permission or input. Click the notification to jump straight back to the right VS Code window.",
-  "version": "0.2.0",
-  "publisher": "luongdong059",
+  "version": "0.2.1",
+  "publisher": "nldong",
   "license": "MIT",
   "icon": "images/icon.png",
   "repository": {
@@ -78,7 +78,7 @@
         "claudeNoti.events.permissionPrompt": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Notify when Claude asks for permission to run a tool (`permission_prompt`)."
+          "markdownDescription": "Notify when Claude asks to run a tool, or puts a set of options in front of you. Driven by the `PermissionRequest` hook, which fires in the VS Code integrated terminal where `Notification` does not."
         },
         "claudeNoti.events.idlePrompt": {
           "type": "boolean",

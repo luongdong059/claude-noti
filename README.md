@@ -61,7 +61,7 @@ Each window then decides independently whether the session belongs to it, by com
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `claudeNoti.enabled` | `true` | Master switch |
-| `claudeNoti.events.permissionPrompt` | `true` | Claude is asking for permission |
+| `claudeNoti.events.permissionPrompt` | `true` | Claude is asking to run a tool, or asking you to pick an option |
 | `claudeNoti.events.idlePrompt` | `true` | Claude has been waiting for input |
 | `claudeNoti.events.agentNeedsInput` | `true` | A subagent or MCP server needs an answer |
 | `claudeNoti.events.stop` | `true` | A turn finished (subagent completions are always ignored) |

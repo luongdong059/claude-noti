@@ -49,28 +49,36 @@ Cursor, Windsurf và VSCodium không lấy extension từ Marketplace của Micr
 
 ## 2. Quy trình phát hành một phiên bản
 
+Viết mục mới trong `CHANGELOG.md` trước — ví dụ `## 0.2.2` — rồi chạy:
+
 ```sh
-# 1. Kiểm tra sạch trước
-npm run typecheck && npm run test
-
-# 2. Nâng version (tự sửa package.json, không tự tag)
-npm version patch --no-git-tag-version    # hoặc minor / major
-
-# 3. Ghi CHANGELOG.md cho phiên bản mới
-
-# 4. Đóng gói và thử trên máy trước khi đẩy đi
-npm run package
-code --install-extension claude-noti-*.vsix --force
-# reload cửa sổ, chạy "Claude Noti: Run Diagnostics" và "Send Test Notification"
-
-# 5. Commit và tag
-git add -A
-git commit -m "release: v0.2.0"
-git tag v0.2.0
-git push origin main --follow-tags
+npm run release patch        # hoặc minor / major / một version cụ thể
 ```
 
-Push tag lên là workflow [release.yml](.github/workflows/release.yml) chạy: kiểm tra tag khớp `package.json`, typecheck, lint, test, đóng gói, tạo GitHub release kèm `.vsix`, rồi đẩy lên Marketplace và Open VSX nếu có token.
+[scripts/publish.sh](scripts/publish.sh) sẽ tự lo phần còn lại. Nó dừng lại trước khi làm bất cứ điều gì nếu:
+
+- `node` cũ hơn 20 và không tìm được bản mới hơn
+- không đứng ở nhánh `main`, hoặc còn thay đổi chưa commit, hoặc lệch với `origin/main`
+- tag đã tồn tại, hoặc version không đổi
+- `CHANGELOG.md` chưa có mục cho version mới
+- typecheck, lint, test, hoặc đóng gói thất bại
+
+Qua hết thì nó in ra việc sắp làm và hỏi xác nhận. Nếu huỷ hoặc có bước nào hỏng, `package.json` được trả về nguyên trạng.
+
+Sau khi push tag, workflow [release.yml](.github/workflows/release.yml) chạy: kiểm tra tag khớp `package.json`, typecheck, lint, test, đóng gói, tạo GitHub release kèm `.vsix`, rồi đẩy lên Marketplace và Open VSX nếu có token.
+
+Muốn đẩy thẳng lên Marketplace từ máy mà không chờ CI:
+
+```sh
+npm run release patch -- --local
+```
+
+Trước khi phát hành một bản có thay đổi đáng kể, nên thử trên máy đã:
+
+```sh
+npm run package && code --install-extension claude-noti-*.vsix --force
+# reload cửa sổ, chạy "Claude Noti: Run Diagnostics" và "Send Test Notification"
+```
 
 ### Lưu ý về Node trên máy này
 

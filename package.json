@@ -1,0 +1,180 @@
+{
+  "name": "claude-noti",
+  "displayName": "Claude Noti",
+  "description": "macOS system notifications when Claude Code needs your permission or input. Click the notification to jump straight back to the right VS Code window.",
+  "version": "0.1.0",
+  "publisher": "luongdong059",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luongdong059/claude-noti.git"
+  },
+  "bugs": {
+    "url": "https://github.com/luongdong059/claude-noti/issues"
+  },
+  "homepage": "https://github.com/luongdong059/claude-noti#readme",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "notification",
+    "macos",
+    "permission"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeNoti.installHooks",
+        "title": "Install Claude Code Hooks",
+        "category": "Claude Noti"
+      },
+      {
+        "command": "claudeNoti.uninstallHooks",
+        "title": "Remove Claude Code Hooks",
+        "category": "Claude Noti"
+      },
+      {
+        "command": "claudeNoti.test",
+        "title": "Send Test Notification",
+        "category": "Claude Noti"
+      },
+      {
+        "command": "claudeNoti.toggleMute",
+        "title": "Toggle Mute",
+        "category": "Claude Noti"
+      },
+      {
+        "command": "claudeNoti.doctor",
+        "title": "Run Diagnostics",
+        "category": "Claude Noti"
+      },
+      {
+        "command": "claudeNoti.showLog",
+        "title": "Show Log",
+        "category": "Claude Noti"
+      }
+    ],
+    "configuration": {
+      "title": "Claude Noti",
+      "properties": {
+        "claudeNoti.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Master switch. When off, no system notifications are sent and the hook payloads are ignored."
+        },
+        "claudeNoti.events.permissionPrompt": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Notify when Claude asks for permission to run a tool (`permission_prompt`)."
+        },
+        "claudeNoti.events.idlePrompt": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Notify when Claude has been waiting for your input (`idle_prompt`)."
+        },
+        "claudeNoti.events.agentNeedsInput": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Notify when a subagent or an MCP server needs an answer (`agent_needs_input`, `elicitation_dialog`)."
+        },
+        "claudeNoti.events.stop": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Notify when Claude finishes a turn. Subagent completions are always ignored, otherwise this would fire constantly."
+        },
+        "claudeNoti.suppressWhenFocused": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Skip the system notification when this VS Code window already has focus — you are looking at it, so an in-window message is used instead."
+        },
+        "claudeNoti.notifierPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to the `alerter` binary. Leave empty to auto-detect on `PATH` and in the usual Homebrew locations."
+        },
+        "claudeNoti.impersonateEditor": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Post notifications under the editor's bundle identifier so they carry its icon. Recent macOS releases may suppress notifications from an impersonated sender, so this is off by default — turn it on and run **Claude Noti: Send Test Notification** to see whether it works on your machine."
+        },
+        "claudeNoti.sound": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Sound to play with the notification, e.g. `default` or `Glass`. Empty means silent."
+        },
+        "claudeNoti.timeoutSeconds": {
+          "type": "number",
+          "default": 90,
+          "minimum": 0,
+          "markdownDescription": "Auto-close the notification after this many seconds. `0` means never — not recommended, as each open notification holds a background process."
+        },
+        "claudeNoti.minIntervalMs": {
+          "type": "number",
+          "default": 1500,
+          "minimum": 0,
+          "markdownDescription": "Drop repeat notifications for the same session that arrive within this window."
+        },
+        "claudeNoti.notifyUnmatchedSessions": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Also notify for Claude Code sessions whose working directory is not inside any open workspace. One window is elected to handle these, so you get a single notification."
+        },
+        "claudeNoti.onFocusCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Command IDs to run after the window is brought to the front, e.g. `workbench.action.terminal.focus`."
+        },
+        "claudeNoti.hookScope": {
+          "type": "string",
+          "enum": [
+            "user",
+            "project"
+          ],
+          "default": "user",
+          "markdownEnumDescriptions": [
+            "Install into `~/.claude/settings.json` — applies to every project.",
+            "Install into `.claude/settings.json` of the current workspace folder."
+          ],
+          "markdownDescription": "Where **Claude Noti: Install Claude Code Hooks** writes the hook entries."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "pretest:unit": "tsc -p tsconfig.json",
+    "test:unit": "node --test dist-test/test/*.test.js",
+    "test": "npm run lint && npm run test:unit",
+    "package": "npm run compile && vsce package",
+    "vscode:prepublish": "node esbuild.mjs --production"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.15.0",
+    "ovsx": "^0.10.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.15.0"
+  }
+}

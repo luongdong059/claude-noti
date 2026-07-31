@@ -1,0 +1,16 @@
+.vscode/**
+.github/**
+src/**
+scripts/**
+dist-test/**
+*.vsix
+node_modules/**
+**/*.map
+**/*.ts
+!dist/extension.js
+tsconfig.json
+tsconfig.test.json
+esbuild.mjs
+eslint.config.mjs
+.gitignore
+.editorconfig

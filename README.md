@@ -1,0 +1,89 @@
+# Claude Noti
+
+Get a real macOS notification when Claude Code needs you — and click it to land back in the right VS Code window.
+
+## Why
+
+Claude Code sends desktop notifications from Ghostty, Kitty and iTerm2. The VS Code integrated terminal is not on that list, so when you kick off a task and switch to another app, a permission prompt can sit there unanswered for a long time.
+
+Claude Noti closes that gap:
+
+- **A system notification** every time Claude asks for permission, waits for your input, or finishes a turn.
+- **Click to return.** The click raises the specific window whose workspace the session belongs to, not just whichever window was last in front.
+- **Quiet when you are already looking.** If the relevant window has focus, you get a small status-bar message instead of a banner.
+- **One notification, not five.** With several windows open, exactly one of them claims each session.
+
+## Requirements
+
+- macOS 13 or later
+- [Claude Code](https://claude.com/claude-code)
+- [`alerter`](https://github.com/vjeantet/alerter) for clickable notifications:
+
+  ```sh
+  brew install vjeantet/tap/alerter
+  ```
+
+  Without it the extension falls back to `osascript`, which can still show a notification but cannot report a click — so the "jump back to the window" behaviour is unavailable.
+
+## Setup
+
+1. Install the extension.
+2. Accept the prompt to install hooks, or run **Claude Noti: Install Claude Code Hooks** from the command palette.
+3. Start a new Claude Code session — hooks are read at session start.
+4. Run **Claude Noti: Send Test Notification** to confirm everything works.
+
+If nothing appears, run **Claude Noti: Run Diagnostics**. It checks the binary, the hook registration, the IPC socket and the window registry, and prints what is wrong.
+
+## How it works
+
+Installing hooks writes a small script to `~/.claude-noti/hook.sh` and registers it for Claude Code's `Notification` and `Stop` events. When Claude Code fires one, the script forwards the payload to every open VS Code window over a Unix domain socket in a `0700` directory under your home directory. No TCP port is opened and nothing leaves your machine.
+
+Each window then decides independently whether the session belongs to it, by comparing the reported working directory against its own workspace folders — deepest match wins, lowest process id breaks ties. Because every window runs the same comparison over the same registry, exactly one of them acts, with no coordination needed.
+
+## Settings
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `claudeNoti.enabled` | `true` | Master switch |
+| `claudeNoti.events.permissionPrompt` | `true` | Claude is asking for permission |
+| `claudeNoti.events.idlePrompt` | `true` | Claude has been waiting for input |
+| `claudeNoti.events.agentNeedsInput` | `true` | A subagent or MCP server needs an answer |
+| `claudeNoti.events.stop` | `true` | A turn finished (subagent completions are always ignored) |
+| `claudeNoti.suppressWhenFocused` | `true` | Stay quiet when the window already has focus |
+| `claudeNoti.notifierPath` | `""` | Override the path to `alerter` |
+| `claudeNoti.impersonateEditor` | `false` | Show the editor's icon on the notification. Recent macOS releases may suppress notifications from an impersonated sender, so try it with the test command before relying on it |
+| `claudeNoti.sound` | `""` | Sound name, e.g. `default` or `Glass` |
+| `claudeNoti.timeoutSeconds` | `90` | Auto-close the notification |
+| `claudeNoti.minIntervalMs` | `1500` | Drop repeats for the same session |
+| `claudeNoti.notifyUnmatchedSessions` | `false` | Also notify for sessions outside any open workspace |
+| `claudeNoti.onFocusCommands` | `[]` | Commands to run after the window comes forward, e.g. `workbench.action.terminal.focus` |
+| `claudeNoti.hookScope` | `"user"` | Install hooks globally or per project |
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| Claude Noti: Install Claude Code Hooks | Register the hooks with Claude Code |
+| Claude Noti: Remove Claude Code Hooks | Undo that, leaving other hooks alone |
+| Claude Noti: Send Test Notification | Check the notifier and the click path |
+| Claude Noti: Toggle Mute | Silence this window for a while |
+| Claude Noti: Run Diagnostics | Report what is and is not working |
+| Claude Noti: Show Log | Open the output channel |
+
+## Notes on your Claude Code settings
+
+The installer edits `~/.claude/settings.json` (or `.claude/settings.json` for project scope). It refuses to write if the file is not valid JSON, keeps a `.claude-noti.bak` copy of the previous contents, adds nothing that is already there, and on removal takes out only its own entries.
+
+## Troubleshooting
+
+**Nothing happens at all.** Hooks are read when a Claude Code session starts, so restart the session after installing them. Then run diagnostics.
+
+**Notifications appear but clicking does nothing.** `alerter` is missing and the `osascript` fallback is in use. Install `alerter`.
+
+**No notification ever appears.** Check System Settings → Notifications and confirm notifications are allowed, and that a Focus mode is not filtering them out.
+
+**Two notifications for one prompt.** Two windows both claim the session, which should not happen — please open an issue with the output of **Run Diagnostics** from both windows.
+
+## Licence
+
+MIT

@@ -33,7 +33,7 @@ export function readSettings(): Settings {
     notifierPath: config.get('notifierPath', '').trim(),
     impersonateEditor: config.get('impersonateEditor', false),
     sound: config.get('sound', '').trim(),
-    timeoutSeconds: Math.max(0, config.get('timeoutSeconds', 90)),
+    timeoutSeconds: Math.max(0, config.get('timeoutSeconds', 0)),
     minIntervalMs: Math.max(0, config.get('minIntervalMs', 1500)),
     notifyUnmatchedSessions: config.get('notifyUnmatchedSessions', false),
     onFocusCommands: config.get('onFocusCommands', []),

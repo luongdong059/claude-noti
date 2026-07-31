@@ -4,6 +4,7 @@ src/**
 scripts/**
 dist-test/**
 *.vsix
+PUBLISHING.md
 node_modules/**
 **/*.map
 **/*.ts

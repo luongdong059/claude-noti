@@ -29,6 +29,8 @@ Claude Noti closes that gap:
 
   Without it the extension falls back to `osascript`, which can still show a notification but cannot report a click — so the "jump back to the window" behaviour is unavailable.
 
+After the first notification is sent, macOS adds an **alerter** entry under System Settings → Notifications. Set its style to **Alerts** rather than **Banners**: banners disappear after a few seconds, so the one notification you needed is gone before you look back at the screen.
+
 ## Install
 
 Until the Marketplace listing is live, grab the `.vsix` from the [latest release](https://github.com/luongdong059/claude-noti/releases/latest):
@@ -65,7 +67,7 @@ Each window then decides independently whether the session belongs to it, by com
 | `claudeNoti.notifierPath` | `""` | Override the path to `alerter` |
 | `claudeNoti.impersonateEditor` | `false` | Show the editor's icon on the notification. Recent macOS releases may suppress notifications from an impersonated sender, so try it with the test command before relying on it |
 | `claudeNoti.sound` | `""` | Sound name, e.g. `default` or `Glass` |
-| `claudeNoti.timeoutSeconds` | `90` | Auto-close the notification |
+| `claudeNoti.timeoutSeconds` | `0` | Auto-close after N seconds; `0` waits until you act on it |
 | `claudeNoti.minIntervalMs` | `1500` | Drop repeats for the same session |
 | `claudeNoti.notifyUnmatchedSessions` | `false` | Also notify for sessions outside any open workspace |
 | `claudeNoti.onFocusCommands` | `[]` | Commands to run after the window comes forward, e.g. `workbench.action.terminal.focus` |
@@ -92,7 +94,9 @@ The installer edits `~/.claude/settings.json` (or `.claude/settings.json` for pr
 
 **Notifications appear but clicking does nothing.** `alerter` is missing and the `osascript` fallback is in use. Install `alerter`.
 
-**No notification ever appears.** Check System Settings → Notifications and confirm notifications are allowed, and that a Focus mode is not filtering them out.
+**No notification ever appears.** First check whether they are arriving at all: click the clock in the menu bar to open Notification Center. If the messages are sitting there, delivery is working and the alert style is set to **None** — open System Settings → Notifications → **alerter** and switch it to **Alerts**. If Notification Center is empty too, a Focus mode is filtering them or notifications are not allowed for alerter.
+
+Note that macOS only lists **alerter** in System Settings after it has posted at least once, so send a test notification before going looking for the entry.
 
 **Two notifications for one prompt.** Two windows both claim the session, which should not happen — please open an issue with the output of **Run Diagnostics** from both windows.
 

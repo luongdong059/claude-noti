@@ -89,16 +89,31 @@ export class AlerterNotifier implements Notifier {
   }
 
   /**
-   * Replaces an earlier notification for the same session. Killing the process
-   * alone would leave the banner on screen, so the notification is withdrawn
-   * from Notification Center too.
+   * Ends the previous notification for a session so a newer one can take its
+   * place.
+   *
+   * Only the blocked process is killed. alerter already replaces a
+   * notification that shares its `--group`, so an explicit `--remove` here
+   * would be redundant — and worse, it runs concurrently with the post that
+   * immediately follows, so it can withdraw the notification we just
+   * delivered instead of the old one.
    */
   private retire(group: string): void {
     const existing = this.live.get(group);
-    if (existing) {
-      existing.kill();
-      this.live.delete(group);
+    if (!existing) {
+      return;
     }
+    existing.kill();
+    this.live.delete(group);
+  }
+
+  /**
+   * Takes a notification down with nothing replacing it, so the banner has to
+   * be withdrawn explicitly. Safe to `--remove` here precisely because no post
+   * for this group follows.
+   */
+  private withdraw(group: string): void {
+    this.retire(group);
     execFile(this.binary, ['--remove', group], { timeout: 5000 }, (err) => {
       if (err) {
         log.debug('alerter --remove', group, 'failed:', String(err));
@@ -112,16 +127,14 @@ export class AlerterNotifier implements Notifier {
       if (oldest.done) {
         return;
       }
-      log.debug('too many live notifications, retiring', oldest.value);
-      this.retire(oldest.value);
+      log.debug('too many live notifications, withdrawing', oldest.value);
+      this.withdraw(oldest.value);
     }
   }
 
   dispose(): void {
-    for (const [group, child] of this.live) {
-      child.kill();
-      execFile(this.binary, ['--remove', group], () => {});
+    for (const group of [...this.live.keys()]) {
+      this.withdraw(group);
     }
-    this.live.clear();
   }
 }

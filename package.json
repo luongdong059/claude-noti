@@ -2,7 +2,7 @@
   "name": "claude-noti",
   "displayName": "Claude Noti",
   "description": "macOS system notifications when Claude Code needs your permission or input. Click the notification to jump straight back to the right VS Code window.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "luongdong059",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -117,9 +117,9 @@
         },
         "claudeNoti.timeoutSeconds": {
           "type": "number",
-          "default": 90,
+          "default": 0,
           "minimum": 0,
-          "markdownDescription": "Auto-close the notification after this many seconds. `0` means never — not recommended, as each open notification holds a background process."
+          "markdownDescription": "Auto-close the notification after this many seconds. `0` means it waits until you act on it, which is the point when you have stepped away from the machine — a notification that expires while you are in another app is one you never see. Each waiting notification holds one background process, capped at five."
         },
         "claudeNoti.minIntervalMs": {
           "type": "number",

@@ -95,11 +95,13 @@ export async function runDoctor(env: DoctorEnvironment): Promise<void> {
   lines.push(`  timeout=${settings.timeoutSeconds}s minInterval=${settings.minIntervalMs}ms`);
 
   lines.push('');
-  lines.push('If notifications land in Notification Center but no banner appears on');
+  lines.push('If notifications land in Notification Center but nothing appears on');
   lines.push('screen, the alert style is the cause, not this extension. Open');
-  lines.push('System Settings → Notifications → alerter and set the style to');
-  lines.push('"Alerts". "Banners" disappear after a few seconds, which defeats the');
-  lines.push('purpose when you are away from the machine.');
+  lines.push('System Settings → Notifications → Terminal and set the style to');
+  lines.push('"Alerts". Look under Terminal, not alerter: alerter posts under the');
+  lines.push('com.apple.Terminal bundle id, so no "alerter" entry exists. And use');
+  lines.push('"Alerts", not "Banners" — banners vanish after a few seconds, which');
+  lines.push('defeats the purpose when you are away from the machine.');
   lines.push('==================================');
 
   for (const line of lines) {

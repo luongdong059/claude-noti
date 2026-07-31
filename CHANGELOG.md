@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- New icon.
+- Documented where the notification settings actually live. alerter posts under the `com.apple.Terminal` bundle identifier, so there is no "alerter" entry in System Settings — the style has to be changed on **Terminal**. Testing on macOS 26 confirmed that any other sender, including alerter's own bundle id, is dropped without a notification ever appearing.
+- `claudeNoti.impersonateEditor` now says outright that turning it on will most likely stop notifications appearing, for the same reason.
+- Removed the icon generator script and the CI step that checked its output.
+
 ## 0.1.1
 
 - Fixed a race that could withdraw a notification immediately after posting it. Replacing an earlier notification for the same session ran `alerter --remove` concurrently with the new post, and alerter already replaces by `--group`, so the removal was both redundant and able to cancel the wrong notification.

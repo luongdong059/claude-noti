@@ -108,7 +108,7 @@
         "claudeNoti.impersonateEditor": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Post notifications under the editor's bundle identifier so they carry its icon. Recent macOS releases may suppress notifications from an impersonated sender, so this is off by default — turn it on and run **Claude Noti: Send Test Notification** to see whether it works on your machine."
+          "markdownDescription": "Post notifications under the editor's bundle identifier so they carry its icon. **Likely to stop notifications appearing at all.** macOS only displays a notification whose sender is registered with Notification Center, and testing on macOS 26 showed anything other than alerter's default `com.apple.Terminal` being dropped silently. Leave this off unless you have turned it on, run **Claude Noti: Send Test Notification**, and actually seen the notification."
         },
         "claudeNoti.sound": {
           "type": "string",

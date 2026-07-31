@@ -29,7 +29,9 @@ Claude Noti closes that gap:
 
   Without it the extension falls back to `osascript`, which can still show a notification but cannot report a click — so the "jump back to the window" behaviour is unavailable.
 
-After the first notification is sent, macOS adds an **alerter** entry under System Settings → Notifications. Set its style to **Alerts** rather than **Banners**: banners disappear after a few seconds, so the one notification you needed is gone before you look back at the screen.
+Then open System Settings → Notifications and set **Terminal** to **Alerts**.
+
+Two things about that are surprising enough to be worth stating plainly. There is no "alerter" entry to find: alerter posts under `com.apple.Terminal`, so macOS files its notifications under **Terminal**. And the style has to be **Alerts**, not **Banners** — banners disappear after a few seconds, so the one notification you needed is gone before you look back at the screen.
 
 ## Install
 
@@ -94,9 +96,9 @@ The installer edits `~/.claude/settings.json` (or `.claude/settings.json` for pr
 
 **Notifications appear but clicking does nothing.** `alerter` is missing and the `osascript` fallback is in use. Install `alerter`.
 
-**No notification ever appears.** First check whether they are arriving at all: click the clock in the menu bar to open Notification Center. If the messages are sitting there, delivery is working and the alert style is set to **None** — open System Settings → Notifications → **alerter** and switch it to **Alerts**. If Notification Center is empty too, a Focus mode is filtering them or notifications are not allowed for alerter.
+**No notification ever appears.** First check whether they are arriving at all: click the clock in the menu bar to open Notification Center. If the messages are sitting there, delivery is working and only the alert style is wrong — open System Settings → Notifications → **Terminal** and switch it to **Alerts**. If Notification Center is empty too, a Focus mode is filtering them or notifications are not allowed for Terminal.
 
-Note that macOS only lists **alerter** in System Settings after it has posted at least once, so send a test notification before going looking for the entry.
+**There is no "alerter" entry in System Settings.** There never will be. alerter posts under the `com.apple.Terminal` bundle identifier, so its notifications are governed by the **Terminal** entry. Changing that entry does also change how real Terminal.app notifications behave, which is the price of using a command-line notifier.
 
 **Two notifications for one prompt.** Two windows both claim the session, which should not happen — please open an issue with the output of **Run Diagnostics** from both windows.
 

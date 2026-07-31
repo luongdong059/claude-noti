@@ -74,13 +74,13 @@ Push tag lên là workflow [release.yml](.github/workflows/release.yml) chạy: 
 
 ### Lưu ý về Node trên máy này
 
-`vsce` 3.x cần Node 20 trở lên, trong khi `node -v` trên máy đang là 18. Homebrew có sẵn Node 25, dùng nó khi chạy `vsce`:
+`vsce` 3.x cần Node 20 trở lên, nhưng `node -v` trả về 18 — bản đó đến từ nvm của Laravel Herd (`~/Library/Application Support/Herd/config/nvm/`), đứng trước Homebrew trong `PATH`. Homebrew có Node 25, nên chỉ cần cho nó lên trước khi chạy `vsce`:
 
 ```sh
-PATH="/opt/homebrew/Cellar/node/25.9.0_1/bin:$PATH" npx vsce package
+PATH="/opt/homebrew/bin:$PATH" npx vsce package
 ```
 
-CI dùng Node 20 nên không vướng chuyện này.
+Muốn khỏi phải gõ tiền tố này mỗi lần thì đưa `/opt/homebrew/bin` lên trước trong `PATH` ở `~/.zshrc`. CI dùng Node 20 nên không vướng.
 
 ## 3. Publish thủ công khi cần
 

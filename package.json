@@ -2,7 +2,7 @@
   "name": "claude-noti",
   "displayName": "Claude Noti",
   "description": "macOS system notifications when Claude Code needs your permission or input. Click the notification to jump straight back to the right VS Code window.",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "luongdong059",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -109,6 +109,11 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Post notifications under the editor's bundle identifier so they carry its icon. **Likely to stop notifications appearing at all.** macOS only displays a notification whose sender is registered with Notification Center, and testing on macOS 26 showed anything other than alerter's default `com.apple.Terminal` being dropped silently. Leave this off unless you have turned it on, run **Claude Noti: Send Test Notification**, and actually seen the notification."
+        },
+        "claudeNoti.notificationIcon": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Image shown on the notification. Empty uses the extension's own bell icon, which is the point: alerter posts under Terminal's bundle identifier, so otherwise the notification wears Terminal's icon. Give an absolute path to use your own image, or `none` to leave the sender's icon alone."
         },
         "claudeNoti.sound": {
           "type": "string",

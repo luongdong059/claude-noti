@@ -9,6 +9,7 @@ export interface Settings {
   suppressWhenFocused: boolean;
   notifierPath: string;
   impersonateEditor: boolean;
+  notificationIcon: string;
   sound: string;
   timeoutSeconds: number;
   minIntervalMs: number;
@@ -32,6 +33,7 @@ export function readSettings(): Settings {
     suppressWhenFocused: config.get('suppressWhenFocused', true),
     notifierPath: config.get('notifierPath', '').trim(),
     impersonateEditor: config.get('impersonateEditor', false),
+    notificationIcon: config.get('notificationIcon', '').trim(),
     sound: config.get('sound', '').trim(),
     timeoutSeconds: Math.max(0, config.get('timeoutSeconds', 0)),
     minIntervalMs: Math.max(0, config.get('minIntervalMs', 1500)),

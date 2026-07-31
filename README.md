@@ -68,6 +68,7 @@ Each window then decides independently whether the session belongs to it, by com
 | `claudeNoti.suppressWhenFocused` | `true` | Stay quiet when the window already has focus |
 | `claudeNoti.notifierPath` | `""` | Override the path to `alerter` |
 | `claudeNoti.impersonateEditor` | `false` | Show the editor's icon on the notification. Recent macOS releases may suppress notifications from an impersonated sender, so try it with the test command before relying on it |
+| `claudeNoti.notificationIcon` | `""` | Image on the notification. Empty uses the extension's bell icon; a path uses your own; `none` keeps Terminal's |
 | `claudeNoti.sound` | `""` | Sound name, e.g. `default` or `Glass` |
 | `claudeNoti.timeoutSeconds` | `0` | Auto-close after N seconds; `0` waits until you act on it |
 | `claudeNoti.minIntervalMs` | `1500` | Drop repeats for the same session |

@@ -1,3 +1,6 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
 import * as vscode from 'vscode';
 
 import { CONFIG_SECTION, readSettings } from './config';
@@ -65,7 +68,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // recent macOS releases can silently drop notifications from a spoofed
     // sender — so it stays opt-in and the default is alerter's own identity.
     notifier = binary
-      ? new AlerterNotifier(binary, settings.impersonateEditor ? bundleId : undefined)
+      ? new AlerterNotifier(
+          binary,
+          settings.impersonateEditor ? bundleId : undefined,
+          resolveIcon(context, settings.notificationIcon),
+        )
       : new OsascriptNotifier();
     statusBar?.setDetail(
       notifier.kind === 'alerter'
@@ -122,7 +129,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       router.refresh();
       if (
         event.affectsConfiguration(`${CONFIG_SECTION}.notifierPath`) ||
-        event.affectsConfiguration(`${CONFIG_SECTION}.impersonateEditor`)
+        event.affectsConfiguration(`${CONFIG_SECTION}.impersonateEditor`) ||
+        event.affectsConfiguration(`${CONFIG_SECTION}.notificationIcon`)
       ) {
         rebuildNotifier();
       }
@@ -182,6 +190,26 @@ function currentWorkspaceFile(): string | undefined {
 /** Where project-scoped hooks would be written. */
 function projectRoot(): string | undefined {
   return currentFolders()[0];
+}
+
+/**
+ * Picks the image shown on the notification.
+ *
+ * alerter posts under Terminal's bundle identifier, so without an override the
+ * notification wears Terminal's icon and looks like it came from a shell. The
+ * extension's own icon makes it recognisable at a glance, which matters when
+ * the notification is the only thing you see of it.
+ */
+function resolveIcon(context: vscode.ExtensionContext, configured: string): string | undefined {
+  if (configured === 'none') {
+    return undefined;
+  }
+  const candidate = configured || path.join(context.extensionUri.fsPath, 'images', 'icon.png');
+  if (fs.existsSync(candidate)) {
+    return candidate;
+  }
+  log.warn('notification icon not found, falling back to the sender default:', candidate);
+  return undefined;
 }
 
 function describeSelf(

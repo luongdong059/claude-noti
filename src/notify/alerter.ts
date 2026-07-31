@@ -30,6 +30,12 @@ export class AlerterNotifier implements Notifier {
   constructor(
     private readonly binary: string,
     private readonly sender: string | undefined,
+    /**
+     * Image shown in place of the posting application's icon. Without it the
+     * notification carries Terminal's icon, because that is the bundle
+     * identifier alerter posts under.
+     */
+    private readonly appIcon: string | undefined,
   ) {}
 
   notify(content: NotificationContent, options: NotifyOptions, onClick: () => void): void {
@@ -50,6 +56,9 @@ export class AlerterNotifier implements Notifier {
     ];
     if (this.sender) {
       args.push('--sender', this.sender);
+    }
+    if (this.appIcon) {
+      args.push('--app-icon', this.appIcon);
     }
     if (options.sound) {
       args.push('--sound', options.sound);

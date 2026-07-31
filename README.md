@@ -98,6 +98,14 @@ The installer edits `~/.claude/settings.json` (or `.claude/settings.json` for pr
 
 **No notification ever appears.** First check whether they are arriving at all: click the clock in the menu bar to open Notification Center. If the messages are sitting there, delivery is working and only the alert style is wrong — open System Settings → Notifications → **Terminal** and switch it to **Alerts**. If Notification Center is empty too, a Focus mode is filtering them or notifications are not allowed for Terminal.
 
+**Notifications reach Notification Center, the settings are right, and still nothing appears on screen.** macOS's own `NotificationCenter` agent can wedge into a state where it files notifications away without ever drawing them. Nothing in System Settings shows this, and no amount of changing the alert style fixes it. Restart the agent:
+
+```sh
+killall NotificationCenter
+```
+
+It relaunches immediately under launchd, and banners come back. Worth trying before assuming anything is wrong with a notification tool — it applies to every app on the machine, not just this one.
+
 **There is no "alerter" entry in System Settings.** There never will be. alerter posts under the `com.apple.Terminal` bundle identifier, so its notifications are governed by the **Terminal** entry. Changing that entry does also change how real Terminal.app notifications behave, which is the price of using a command-line notifier.
 
 **Two notifications for one prompt.** Two windows both claim the session, which should not happen — please open an issue with the output of **Run Diagnostics** from both windows.

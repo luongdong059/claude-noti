@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Documented a macOS failure that looks exactly like a broken notifier: the system's own `NotificationCenter` agent can wedge into a state where it files notifications away without ever drawing them on screen. Every setting reads as correct and no tool can detect it. `killall NotificationCenter` restores it. The README and the diagnostics command now say so, because it costs a long time to work out otherwise.
+
 ## 0.1.2
 
 - New icon.

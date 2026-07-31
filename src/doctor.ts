@@ -102,6 +102,11 @@ export async function runDoctor(env: DoctorEnvironment): Promise<void> {
   lines.push('com.apple.Terminal bundle id, so no "alerter" entry exists. And use');
   lines.push('"Alerts", not "Banners" — banners vanish after a few seconds, which');
   lines.push('defeats the purpose when you are away from the machine.');
+  lines.push('');
+  lines.push('If that setting is already correct and notifications still only reach');
+  lines.push('Notification Center, macOS\'s own agent has wedged. Run:');
+  lines.push('  killall NotificationCenter');
+  lines.push('It relaunches on its own and banners start appearing again.');
   lines.push('==================================');
 
   for (const line of lines) {

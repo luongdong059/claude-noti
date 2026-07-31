@@ -1,5 +1,9 @@
 # Claude Noti
 
+[![CI](https://github.com/luongdong059/claude-noti/actions/workflows/ci.yml/badge.svg)](https://github.com/luongdong059/claude-noti/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/luongdong059/claude-noti)](https://github.com/luongdong059/claude-noti/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Get a real macOS notification when Claude Code needs you — and click it to land back in the right VS Code window.
 
 ## Why
@@ -24,6 +28,14 @@ Claude Noti closes that gap:
   ```
 
   Without it the extension falls back to `osascript`, which can still show a notification but cannot report a click — so the "jump back to the window" behaviour is unavailable.
+
+## Install
+
+Until the Marketplace listing is live, grab the `.vsix` from the [latest release](https://github.com/luongdong059/claude-noti/releases/latest):
+
+```sh
+code --install-extension claude-noti.vsix
+```
 
 ## Setup
 
@@ -83,6 +95,12 @@ The installer edits `~/.claude/settings.json` (or `.claude/settings.json` for pr
 **No notification ever appears.** Check System Settings → Notifications and confirm notifications are allowed, and that a Focus mode is not filtering them out.
 
 **Two notifications for one prompt.** Two windows both claim the session, which should not happen — please open an issue with the output of **Run Diagnostics** from both windows.
+
+## Contributing
+
+`npm ci` then `npm run watch`, and press F5 in VS Code to launch an Extension Development Host. `npm test` runs the linter and the unit suite; `npm run typecheck` is separate.
+
+Release steps and Marketplace setup are in [PUBLISHING.md](PUBLISHING.md).
 
 ## Licence
 

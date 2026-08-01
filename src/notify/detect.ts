@@ -52,12 +52,15 @@ export function isExecutable(file: string): boolean {
  * makes this work unchanged on Cursor, Windsurf and VSCodium.
  */
 export function outermostAppBundle(execPath: string): string | undefined {
-  const segments = execPath.split(path.sep);
+  // Split on '/' rather than path.sep: an application bundle path is a macOS
+  // path whatever machine this happens to be parsed on, and path.sep would be
+  // a backslash when the tests run on a Windows CI runner.
+  const segments = execPath.split('/');
   const index = segments.findIndex((segment) => segment.endsWith('.app'));
   if (index === -1) {
     return undefined;
   }
-  return segments.slice(0, index + 1).join(path.sep);
+  return segments.slice(0, index + 1).join('/');
 }
 
 export function bundleIdentifier(appPath: string): Promise<string | undefined> {

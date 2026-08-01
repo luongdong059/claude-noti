@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { log } from '../log';
-import { INSTANCES_DIR, ROOT, SOCK_DIR, instancePath, socketPath } from '../paths';
+import { INSTANCES_DIR, ROOT, SOCK_DIR, instancePath } from '../paths';
+import { platform } from '../platform';
 
 /**
  * One record per live VS Code window. The hook script broadcasts every payload
@@ -45,7 +46,9 @@ export function writeSelf(record: InstanceRecord): void {
 
 export function removeSelf(pid: number): void {
   safeUnlink(instancePath(pid));
-  safeUnlink(socketPath(pid));
+  // What an endpoint is, and whether it leaves anything behind, is the
+  // platform's business — a Unix socket is a file, a named pipe is not.
+  platform().cleanupEndpoint(pid);
 }
 
 export function readAll(): InstanceRecord[] {

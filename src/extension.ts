@@ -1,6 +1,3 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-
 import * as vscode from 'vscode';
 
 import { CONFIG_SECTION, readSettings } from './config';
@@ -17,9 +14,7 @@ import { IpcServer } from './ipc/server';
 import { type InstanceRecord, pruneStale, removeSelf, writeSelf } from './ipc/registry';
 import { log, setLogSink } from './log';
 import type { Notifier } from './notify';
-import { AlerterNotifier } from './notify/alerter';
-import { bundleIdentifier, findAlerter, outermostAppBundle } from './notify/detect';
-import { OsascriptNotifier } from './notify/osascript';
+import { platform } from './platform';
 import { Router } from './router';
 import { chooseIcon, chooseSound, chooseTimeout, disposeSettingsUi } from './settingsui';
 import { StatusBar } from './statusbar';
@@ -41,15 +36,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   context.subscriptions.push(channel);
 
-  if (process.platform !== 'darwin') {
-    log.warn('Claude Noti only supports macOS; staying inactive.');
+  const host = platform();
+  if (!host.supported) {
+    // Silence here would look like a broken install, so say it once rather
+    // than only writing to a log channel nobody opens.
+    log.warn(host.unsupportedReason ?? 'unsupported platform');
+    void vscode.window.showWarningMessage(host.unsupportedReason ?? 'Unsupported platform.');
     return;
   }
+  await host.init(context.extensionUri.fsPath);
 
   const pid = process.pid;
-  const appPath = outermostAppBundle(process.execPath);
-  const bundleId = appPath ? await bundleIdentifier(appPath) : undefined;
-  log.info('starting for pid', String(pid), 'app', appPath ?? '(unknown)', bundleId ?? '');
+  log.info('starting for pid', String(pid), 'on', host.id);
 
   // Windows that crashed or were force-quit leave their socket and registry
   // entry behind; clearing them keeps the claim election accurate.
@@ -62,23 +60,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(statusBar);
 
   const rebuildNotifier = () => {
-    notifier?.dispose();
-    const settings = readSettings();
-    const binary = findAlerter(settings.notifierPath);
-    // Impersonating the editor's bundle id gives the notification its icon, but
-    // recent macOS releases can silently drop notifications from a spoofed
-    // sender — so it stays opt-in and the default is alerter's own identity.
-    notifier = binary
-      ? new AlerterNotifier(
-          binary,
-          settings.impersonateEditor ? bundleId : undefined,
-          resolveIcon(context, settings.notificationIcon),
-        )
-      : new OsascriptNotifier();
+    notifier = host.createNotifier(readSettings());
     statusBar?.setDetail(
-      notifier.kind === 'alerter'
-        ? `Using alerter — notifications are clickable.`
-        : `Using osascript — install alerter to make notifications clickable.`,
+      notifier.supportsClick
+        ? `Using ${notifier.kind} — notifications are clickable.`
+        : `Using ${notifier.kind} — notifications cannot be clicked.`,
     );
     log.info('notifier:', notifier.kind);
   };
@@ -86,15 +72,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const router = new Router({
     pid,
-    appPath,
     workspaceFolders: currentFolders,
     workspaceFile: currentWorkspaceFile,
     notifier: () => notifier,
     isMuted: () => statusBar?.isMuted ?? false,
   });
 
+  const endpoint = host.ipcEndpoint(pid);
   server = new IpcServer(
     pid,
+    endpoint,
     (event) => router.handle(event),
     () => ({
       version: context.extension.packageJSON.version,
@@ -107,7 +94,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
   try {
     await server.start();
-    writeSelf(describeSelf(pid, server.socketPath, appPath, context.extension.packageJSON.version));
+    writeSelf(describeSelf(pid, endpoint, context.extension.packageJSON.version));
   } catch (err) {
     log.error('could not start the IPC server', String(err));
     void vscode.window.showErrorMessage(
@@ -119,7 +106,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       if (server) {
         writeSelf(
-          describeSelf(pid, server.socketPath, appPath, context.extension.packageJSON.version),
+          describeSelf(pid, endpoint, context.extension.packageJSON.version),
         );
       }
     }),
@@ -156,14 +143,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('claudeNoti.doctor', () =>
       runDoctor({
         pid,
-        appPath,
-        bundleId,
-        socketPath: server?.socketPath ?? '(not started)',
+        endpoint: server?.socketPath ?? '(not started)',
         notifierKind: notifier?.kind,
         projectRoot: projectRoot(),
       }),
     ),
-    vscode.commands.registerCommand('claudeNoti.test', () => sendTestNotification(appPath)),
+    vscode.commands.registerCommand('claudeNoti.test', () => sendTestNotification()),
   );
 
   void maybeOnboard(context);
@@ -197,39 +182,13 @@ function projectRoot(): string | undefined {
   return currentFolders()[0];
 }
 
-/**
- * Picks the image shown on the notification.
- *
- * alerter posts under Terminal's bundle identifier, so without an override the
- * notification wears Terminal's icon and looks like it came from a shell. The
- * extension's own icon makes it recognisable at a glance, which matters when
- * the notification is the only thing you see of it.
- */
-function resolveIcon(context: vscode.ExtensionContext, configured: string): string | undefined {
-  if (configured === 'none') {
-    return undefined;
-  }
-  const candidate = configured || path.join(context.extensionUri.fsPath, 'images', 'icon.png');
-  if (fs.existsSync(candidate)) {
-    return candidate;
-  }
-  log.warn('notification icon not found, falling back to the sender default:', candidate);
-  return undefined;
-}
-
-function describeSelf(
-  pid: number,
-  socket: string,
-  appPath: string | undefined,
-  version: string,
-): InstanceRecord {
+function describeSelf(pid: number, socket: string, version: string): InstanceRecord {
   return {
     pid,
     socket,
     workspaceFolders: currentFolders(),
     workspaceFile: currentWorkspaceFile(),
     appName: vscode.env.appName,
-    appPath,
     version,
     startedAt: new Date().toISOString(),
   };
@@ -262,7 +221,7 @@ async function handleUninstall(scope: HookScope): Promise<void> {
   }
 }
 
-function sendTestNotification(appPath: string | undefined): void {
+function sendTestNotification(): void {
   if (!notifier) {
     void vscode.window.showErrorMessage('Claude Noti has no notifier available.');
     return;
@@ -280,7 +239,6 @@ function sendTestNotification(appPath: string | undefined): void {
     { timeoutSeconds: Math.max(30, settings.timeoutSeconds), sound: settings.sound },
     () => {
       void focusWindow({
-        appPath,
         workspacePath: currentWorkspaceFile() ?? currentFolders()[0],
         commands: settings.onFocusCommands,
       });

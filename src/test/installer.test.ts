@@ -6,9 +6,10 @@ import { afterEach, beforeEach, describe as suite, test } from 'node:test';
 
 import { hookStatus, installHooks, uninstallHooks } from '../hooks/installer';
 import { HANDLED_EVENTS } from '../hooks/payload';
-import { HOOK_SCRIPT } from '../paths';
+import { platform } from '../platform';
 
 const EVERY_EVENT = [...HANDLED_EVENTS].sort();
+const HOOK_SCRIPT = platform().hookScript().command;
 
 /**
  * These exercise the riskiest code in the extension: it rewrites a

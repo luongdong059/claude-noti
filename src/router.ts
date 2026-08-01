@@ -35,7 +35,6 @@ export interface RoutingDecision {
 
 export interface RouterContext {
   pid: number;
-  appPath: string | undefined;
   workspaceFolders: () => string[];
   workspaceFile: () => string | undefined;
   notifier: () => Notifier | undefined;
@@ -114,7 +113,6 @@ export class Router {
       { timeoutSeconds: settings.timeoutSeconds, sound: settings.sound },
       () => {
         void focusWindow({
-          appPath: this.context.appPath,
           workspacePath: this.context.workspaceFile() ?? this.context.workspaceFolders()[0],
           commands: readSettings().onFocusCommands,
         });

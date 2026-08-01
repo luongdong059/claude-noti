@@ -3,7 +3,6 @@ import * as http from 'node:http';
 
 import { log } from '../log';
 import { type HookEvent, parseHookEvent } from '../hooks/payload';
-import { socketPath, socketPathTooLong } from '../paths';
 import { ensureDirs } from './registry';
 
 /** A hook payload is a few hundred bytes; anything far larger is not ours. */
@@ -20,6 +19,8 @@ export class IpcServer {
 
   constructor(
     private readonly pid: number,
+    /** Unix socket path on macOS, named pipe on Windows. */
+    endpoint: string,
     private readonly onEvent: (event: HookEvent) => void,
     /**
      * Live state reported by `/ping`. Whether a window considers itself
@@ -29,7 +30,7 @@ export class IpcServer {
      */
     private readonly status: () => Record<string, unknown> = () => ({}),
   ) {
-    this.path = socketPath(pid);
+    this.path = endpoint;
   }
 
   get socketPath(): string {
@@ -39,19 +40,15 @@ export class IpcServer {
   async start(): Promise<void> {
     ensureDirs();
 
-    if (socketPathTooLong(this.path)) {
-      throw new Error(
-        `socket path exceeds the macOS limit of 103 bytes: ${this.path}. ` +
-          'Claude Noti cannot listen for hook events.',
-      );
-    }
-
     // A previous process may have died without cleaning up. Binding over a
-    // leftover file fails with EADDRINUSE, so remove it first.
+    // leftover socket file fails with EADDRINUSE, so remove it first. Named
+    // pipes on Windows are not files and disappear with their process, so
+    // there is nothing to unlink and the failure is expected.
     try {
       fs.unlinkSync(this.path);
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT' && process.platform !== 'win32') {
         throw err;
       }
     }
@@ -68,10 +65,13 @@ export class IpcServer {
     });
 
     // Only the owner may talk to us, belt and braces alongside the 0700 dir.
-    try {
-      fs.chmodSync(this.path, 0o600);
-    } catch (err) {
-      log.warn('could not chmod socket', this.path, String(err));
+    // Windows named pipes carry their own ACL and have no mode to set.
+    if (process.platform !== 'win32') {
+      try {
+        fs.chmodSync(this.path, 0o600);
+      } catch (err) {
+        log.warn('could not chmod socket', this.path, String(err));
+      }
     }
 
     server.on('error', (err) => log.error('ipc server error', String(err)));
@@ -137,7 +137,7 @@ export class IpcServer {
     try {
       fs.unlinkSync(this.path);
     } catch {
-      // Already gone, or never created.
+      // Already gone, never created, or a named pipe with nothing to unlink.
     }
   }
 }

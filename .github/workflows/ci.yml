@@ -11,8 +11,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  # The routing, event-filter and settings-patching logic is deliberately free
+  # of OS-specific code, and running it on three operating systems is what
+  # keeps it that way — a stray Unix path separator or a `/tmp` assumption
+  # fails here rather than on a user's machine.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +39,19 @@ jobs:
 
       - name: Unit tests
         run: npm run test:unit
+
+  package:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
 
       # Packaging is the step most likely to break on metadata problems
       # (missing icon, bad repository field, oversized bundle), so it runs on

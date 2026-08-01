@@ -1,12 +1,11 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
 import { CONFIG_SECTION } from './config';
 import { log } from './log';
+import { platform } from './platform';
 
 /**
  * Pickers for the three settings people actually want to change.
@@ -17,45 +16,6 @@ import { log } from './log';
  * These commands turn each into a list you can choose from — and for sound,
  * one you can hear before committing to.
  */
-
-/** Where macOS looks up a sound by name, in the order it searches. */
-const SOUND_DIRECTORIES = [
-  path.join(os.homedir(), 'Library', 'Sounds'),
-  '/Library/Sounds',
-  '/System/Library/Sounds',
-];
-
-interface SoundOption {
-  name: string;
-  file: string;
-  source: string;
-}
-
-function availableSounds(): SoundOption[] {
-  const byName = new Map<string, SoundOption>();
-  // Later directories are the system ones; a user sound of the same name wins,
-  // matching how macOS itself resolves them.
-  for (const dir of SOUND_DIRECTORIES) {
-    let entries: string[];
-    try {
-      entries = fs.readdirSync(dir);
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      const name = path.basename(entry, path.extname(entry));
-      if (!name || byName.has(name)) {
-        continue;
-      }
-      byName.set(name, {
-        name,
-        file: path.join(dir, entry),
-        source: dir.startsWith(os.homedir()) ? 'your sounds' : 'system',
-      });
-    }
-  }
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
-}
 
 let preview: ChildProcess | undefined;
 
@@ -90,7 +50,9 @@ export async function chooseSound(): Promise<void> {
   const items: SoundItem[] = [
     { label: '$(mute) Silent', description: 'no sound', value: '' },
     { label: '$(bell) System default', description: 'whatever macOS is set to use', value: 'default' },
-    ...availableSounds().map(
+    ...platform()
+      .listSounds()
+      .map(
       (sound): SoundItem => ({
         label: `$(unmute) ${sound.name}`,
         description: sound.source,

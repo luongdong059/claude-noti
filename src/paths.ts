@@ -10,17 +10,15 @@ import * as path from 'node:path';
 export const ROOT = path.join(os.homedir(), '.claude-noti');
 export const SOCK_DIR = path.join(ROOT, 'sock');
 export const INSTANCES_DIR = path.join(ROOT, 'instances');
-export const HOOK_SCRIPT = path.join(ROOT, 'hook.sh');
 
 /** Claude Code's own user-level settings file, which we patch to register hooks. */
 export const CLAUDE_USER_SETTINGS = path.join(os.homedir(), '.claude', 'settings.json');
 
+/** Where the resources shipped with the extension are copied from. */
+export const RESOURCES_DIR = 'resources';
+
 /** Project-level Claude Code settings, relative to a workspace folder. */
 export const CLAUDE_PROJECT_SETTINGS_RELATIVE = path.join('.claude', 'settings.json');
-
-export function socketPath(pid: number): string {
-  return path.join(SOCK_DIR, `${pid}.sock`);
-}
 
 export function instancePath(pid: number): string {
   return path.join(INSTANCES_DIR, `${pid}.json`);

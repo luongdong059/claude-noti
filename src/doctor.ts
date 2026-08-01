@@ -1,4 +1,3 @@
-import { execFile } from 'node:child_process';
 import * as http from 'node:http';
 
 import * as vscode from 'vscode';
@@ -7,14 +6,11 @@ import { readSettings } from './config';
 import { HOOK_SCRIPT_VERSION, hookStatus, installedScriptVersion } from './hooks/installer';
 import { readAll } from './ipc/registry';
 import { log } from './log';
-import { findAlerter } from './notify/detect';
-import { HOOK_SCRIPT } from './paths';
+import { platform } from './platform';
 
 export interface DoctorEnvironment {
   pid: number;
-  appPath: string | undefined;
-  bundleId: string | undefined;
-  socketPath: string;
+  endpoint: string;
   notifierKind: string | undefined;
   projectRoot: string | undefined;
 }
@@ -30,37 +26,29 @@ export interface DoctorEnvironment {
 export async function runDoctor(env: DoctorEnvironment): Promise<void> {
   const lines: string[] = ['', '===== Claude Noti diagnostics ====='];
   const settings = readSettings();
+  const host = platform();
 
   lines.push(`platform:            ${process.platform} (${process.arch})`);
-  if (process.platform !== 'darwin') {
-    lines.push('  ✗ This extension only supports macOS.');
-  }
-
-  const alerter = findAlerter(settings.notifierPath);
-  if (alerter) {
-    const version = await alerterVersion(alerter);
-    lines.push(`alerter:             ✓ ${alerter}${version ? ` (${version})` : ''}`);
-  } else {
-    lines.push('alerter:             ✗ not found');
-    lines.push('  → brew install vjeantet/tap/alerter');
-    lines.push('  → without it, notifications cannot be clicked to focus this window');
+  if (!host.supported) {
+    lines.push(`  ✗ ${host.unsupportedReason}`);
   }
   lines.push(`active notifier:     ${env.notifierKind ?? 'none'}`);
 
-  lines.push(`application bundle:  ${env.appPath ?? '✗ not detected'}`);
-  lines.push(`bundle identifier:   ${env.bundleId ?? '✗ not detected'}`);
-  lines.push(`impersonate editor:  ${settings.impersonateEditor}`);
+  // Whatever is specific to this operating system — which binary is used, how
+  // notifications are configured, what commonly swallows them.
+  lines.push(...(await host.doctorLines(settings)));
 
+  const scriptPath = host.supported ? host.hookScript().path : '(n/a)';
   const scriptVersion = installedScriptVersion();
   if (scriptVersion === undefined) {
-    lines.push(`hook script:         ✗ missing at ${HOOK_SCRIPT}`);
+    lines.push(`hook script:         ✗ missing at ${scriptPath}`);
   } else if (scriptVersion !== HOOK_SCRIPT_VERSION) {
     lines.push(
       `hook script:         ! outdated (v${scriptVersion}, expected v${HOOK_SCRIPT_VERSION})`,
     );
     lines.push('  → run "Claude Noti: Install Claude Code Hooks" to refresh it');
   } else {
-    lines.push(`hook script:         ✓ ${HOOK_SCRIPT} (v${scriptVersion})`);
+    lines.push(`hook script:         ✓ ${scriptPath} (v${scriptVersion})`);
   }
 
   for (const scope of ['user', 'project'] as const) {
@@ -79,7 +67,7 @@ export async function runDoctor(env: DoctorEnvironment): Promise<void> {
     }
   }
 
-  lines.push(`ipc socket:          ${env.socketPath}`);
+  lines.push(`ipc endpoint:        ${env.endpoint}`);
   const instances = readAll();
   lines.push(`known windows:       ${instances.length}`);
   for (const record of instances) {
@@ -102,20 +90,6 @@ export async function runDoctor(env: DoctorEnvironment): Promise<void> {
       `agent=${settings.events.agentNeedsInput} stop=${settings.events.stop}`,
   );
   lines.push(`  timeout=${settings.timeoutSeconds}s minInterval=${settings.minIntervalMs}ms`);
-
-  lines.push('');
-  lines.push('If notifications land in Notification Center but nothing appears on');
-  lines.push('screen, the alert style is the cause, not this extension. Open');
-  lines.push('System Settings → Notifications → Terminal and set the style to');
-  lines.push('"Alerts". Look under Terminal, not alerter: alerter posts under the');
-  lines.push('com.apple.Terminal bundle id, so no "alerter" entry exists. And use');
-  lines.push('"Alerts", not "Banners" — banners vanish after a few seconds, which');
-  lines.push('defeats the purpose when you are away from the machine.');
-  lines.push('');
-  lines.push('If that setting is already correct and notifications still only reach');
-  lines.push('Notification Center, macOS\'s own agent has wedged. Run:');
-  lines.push('  killall NotificationCenter');
-  lines.push('It relaunches on its own and banners start appearing again.');
   lines.push('==================================');
 
   for (const line of lines) {
@@ -123,13 +97,12 @@ export async function runDoctor(env: DoctorEnvironment): Promise<void> {
   }
   log.show();
 
-  const summary = alerter
-    ? 'Diagnostics written to the Claude Noti output channel.'
-    : 'alerter is not installed — notifications cannot be clicked. See the output channel.';
-  void vscode.window.showInformationMessage(summary);
+  void vscode.window.showInformationMessage(
+    'Diagnostics written to the Claude Noti output channel.',
+  );
 }
 
-/** Asks another window for its live state over its Unix domain socket. */
+/** Asks another window for its live state over its socket or named pipe. */
 function ping(socketPath: string): Promise<Record<string, unknown> | undefined> {
   return new Promise((resolve) => {
     const req = http.get({ socketPath, path: '/ping', timeout: 2000 }, (res) => {
@@ -147,14 +120,6 @@ function ping(socketPath: string): Promise<Record<string, unknown> | undefined> 
     req.on('timeout', () => {
       req.destroy();
       resolve(undefined);
-    });
-  });
-}
-
-function alerterVersion(binary: string): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    execFile(binary, ['--version'], { timeout: 5000 }, (err, stdout) => {
-      resolve(err ? undefined : stdout.trim() || undefined);
     });
   });
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Groundwork for Windows support: everything OS-specific now sits behind a `Platform` interface in `src/platform/`, leaving the routing, event-filter and settings-patching logic free of any OS branches. No change in behaviour on macOS.
+- On an unsupported OS the extension now says so once instead of activating silently and appearing broken.
+- CI runs the test suite on Linux, macOS and Windows, so a stray platform assumption in the shared logic fails in CI rather than on someone's machine.
+
 ## 0.3.0
 
 - Three commands for the settings people actually change: **Choose Notification Sound**, **Choose Notification Icon**, and **Choose How Long Notifications Stay**. The settings themselves already existed but none of their values were guessable — a sound is a bare macOS name like `Sosumi`, an icon is an absolute path. The sound picker plays each one as you move through the list, and lists anything you have put in `~/Library/Sounds` alongside the system sounds.

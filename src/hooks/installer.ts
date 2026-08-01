@@ -2,17 +2,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { log } from '../log';
-import {
-  CLAUDE_PROJECT_SETTINGS_RELATIVE,
-  CLAUDE_USER_SETTINGS,
-  HOOK_SCRIPT,
-  ROOT,
-} from '../paths';
+import { CLAUDE_PROJECT_SETTINGS_RELATIVE, CLAUDE_USER_SETTINGS, RESOURCES_DIR, ROOT } from '../paths';
+import { platform } from '../platform';
 import { HANDLED_EVENTS } from './payload';
 
 export type HookScope = 'user' | 'project';
 
-/** Bumped whenever resources/hook.sh changes, so `doctor` can spot a stale copy. */
+/** Bumped whenever the hook script changes, so `doctor` can spot a stale copy. */
 export const HOOK_SCRIPT_VERSION = 1;
 const VERSION_MARKER = /^#\s*claude-noti-hook-version:\s*(\d+)/m;
 
@@ -40,24 +36,26 @@ export function settingsFileFor(scope: HookScope, projectRoot: string | undefine
 }
 
 /**
- * Copies resources/hook.sh into ~/.claude-noti/ and marks it executable.
- * The script is kept outside the extension directory on purpose: extension
- * folders are replaced wholesale on every update, which would break the
- * absolute path recorded in Claude Code's settings.
+ * Copies the platform's hook script into ~/.claude-noti/ and marks it
+ * executable. The script is kept outside the extension directory on purpose:
+ * extension folders are replaced wholesale on every update, which would break
+ * the absolute path recorded in Claude Code's settings.
  */
 export function installHookScript(extensionPath: string): void {
-  const source = path.join(extensionPath, 'resources', 'hook.sh');
-  const contents = fs.readFileSync(source, 'utf8');
+  const script = platform().hookScript();
+  const contents = fs.readFileSync(path.join(extensionPath, RESOURCES_DIR, script.resource), 'utf8');
   fs.mkdirSync(ROOT, { recursive: true, mode: 0o700 });
-  fs.writeFileSync(HOOK_SCRIPT, contents, { mode: 0o755 });
-  fs.chmodSync(HOOK_SCRIPT, 0o755);
-  log.info('installed hook script at', HOOK_SCRIPT);
+  fs.writeFileSync(script.path, contents, { mode: 0o755 });
+  if (process.platform !== 'win32') {
+    fs.chmodSync(script.path, 0o755);
+  }
+  log.info('installed hook script at', script.path);
 }
 
 export function installedScriptVersion(): number | undefined {
   let contents: string;
   try {
-    contents = fs.readFileSync(HOOK_SCRIPT, 'utf8');
+    contents = fs.readFileSync(platform().hookScript().path, 'utf8');
   } catch {
     return undefined;
   }
@@ -88,7 +86,7 @@ export function installHooks(
     const groups = Array.isArray(hooks[event]) ? (hooks[event] as unknown[]) : [];
     if (!groups.some(groupTargetsOurScript)) {
       groups.push({
-        hooks: [{ type: 'command', command: HOOK_SCRIPT, timeout: 5 }],
+        hooks: [{ type: 'command', command: platform().hookScript().command, timeout: 5 }],
       });
       changed = true;
     }
@@ -249,7 +247,10 @@ function groupTargetsOurScript(group: unknown): boolean {
 
 function isOurHandler(handler: unknown): boolean {
   const record = asRecord(handler);
-  return typeof record?.command === 'string' && record.command === HOOK_SCRIPT;
+  // Matched by substring rather than equality: on Windows the command wraps
+  // the script path in an interpreter invocation, so the path is embedded in
+  // a longer string rather than being the whole of it.
+  return typeof record?.command === 'string' && record.command.includes(platform().hookScript().path);
 }
 
 /**

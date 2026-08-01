@@ -71,6 +71,16 @@ export function platform(): Platform {
   return current;
 }
 
+/**
+ * Replaces the detected platform. Exists so that logic depending on
+ * platform-shaped values — the hook installer above all — can be tested on any
+ * operating system rather than only the one it happens to run on. Pass
+ * `undefined` to go back to detection.
+ */
+export function setPlatform(next: Platform | undefined): void {
+  current = next;
+}
+
 function select(): Platform {
   // Implementations are imported statically — esbuild bundles the whole
   // extension into one file regardless, and nothing in them runs until an

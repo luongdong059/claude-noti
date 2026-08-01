@@ -6,10 +6,31 @@ import { afterEach, beforeEach, describe as suite, test } from 'node:test';
 
 import { hookStatus, installHooks, uninstallHooks } from '../hooks/installer';
 import { HANDLED_EVENTS } from '../hooks/payload';
-import { platform } from '../platform';
+import { type Platform, setPlatform } from '../platform';
 
 const EVERY_EVENT = [...HANDLED_EVENTS].sort();
-const HOOK_SCRIPT = platform().hookScript().command;
+const HOOK_SCRIPT = path.join(os.tmpdir(), 'claude-noti-test-hook.sh');
+
+/**
+ * The installer is the riskiest code here and has to be covered on every
+ * operating system, so it runs against a stand-in platform rather than
+ * whichever one the tests happen to be executing on.
+ */
+const fakePlatform = {
+  id: 'darwin',
+  supported: true,
+  init: async () => {},
+  ipcEndpoint: () => '',
+  cleanupEndpoint: () => {},
+  createNotifier: () => {
+    throw new Error('not used');
+  },
+  raiseWindow: async () => {},
+  hookScript: () => ({ path: HOOK_SCRIPT, resource: 'hook.sh', command: HOOK_SCRIPT }),
+  listSounds: () => [],
+  doctorLines: async () => [],
+  dispose: () => {},
+} as unknown as Platform;
 
 /**
  * These exercise the riskiest code in the extension: it rewrites a
@@ -22,11 +43,13 @@ let root: string;
 let settingsFile: string;
 
 beforeEach(() => {
+  setPlatform(fakePlatform);
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-noti-test-'));
   settingsFile = path.join(root, '.claude', 'settings.json');
 });
 
 afterEach(() => {
+  setPlatform(undefined);
   fs.rmSync(root, { recursive: true, force: true });
 });
 

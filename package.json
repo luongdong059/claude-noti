@@ -182,7 +182,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "pretest:unit": "tsc -p tsconfig.json",
-    "test:unit": "node --test dist-test/test/*.test.js",
+    "test:unit": "node --test dist-test/test",
     "test": "npm run lint && npm run test:unit",
     "package": "npm run compile && vsce package",
     "release": "bash scripts/publish.sh",

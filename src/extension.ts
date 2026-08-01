@@ -21,6 +21,7 @@ import { AlerterNotifier } from './notify/alerter';
 import { bundleIdentifier, findAlerter, outermostAppBundle } from './notify/detect';
 import { OsascriptNotifier } from './notify/osascript';
 import { Router } from './router';
+import { chooseIcon, chooseSound, chooseTimeout, disposeSettingsUi } from './settingsui';
 import { StatusBar } from './statusbar';
 
 const ONBOARDED_KEY = 'claudeNoti.onboardingDismissed';
@@ -149,6 +150,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       );
     }),
     vscode.commands.registerCommand('claudeNoti.showLog', () => log.show()),
+    vscode.commands.registerCommand('claudeNoti.chooseSound', () => chooseSound()),
+    vscode.commands.registerCommand('claudeNoti.chooseIcon', () => chooseIcon()),
+    vscode.commands.registerCommand('claudeNoti.chooseTimeout', () => chooseTimeout()),
     vscode.commands.registerCommand('claudeNoti.doctor', () =>
       runDoctor({
         pid,
@@ -166,6 +170,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export function deactivate(): void {
+  disposeSettingsUi();
   notifier?.dispose();
   notifier = undefined;
   server?.dispose();

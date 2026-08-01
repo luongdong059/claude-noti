@@ -86,6 +86,11 @@ Each window then decides independently whether the session belongs to it, by com
 | Claude Noti: Toggle Mute | Silence this window for a while |
 | Claude Noti: Run Diagnostics | Report what is and is not working |
 | Claude Noti: Show Log | Open the output channel |
+| Claude Noti: Choose Notification Sound | Pick a sound, hearing each one as you move through the list |
+| Claude Noti: Choose Notification Icon | Use the bell, Terminal's icon, or an image of your own |
+| Claude Noti: Choose How Long Notifications Stay | Wait for you, or auto-close after a set time |
+
+The last three write to the same settings listed above. They exist because none of those values are guessable: a sound is a bare macOS name like `Sosumi`, and an icon is an absolute path. Picking a sound plays it as you scroll, which is the only sensible way to choose one.
 
 ## Notes on your Claude Code settings
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- Three commands for the settings people actually change: **Choose Notification Sound**, **Choose Notification Icon**, and **Choose How Long Notifications Stay**. The settings themselves already existed but none of their values were guessable — a sound is a bare macOS name like `Sosumi`, an icon is an absolute path. The sound picker plays each one as you move through the list, and lists anything you have put in `~/Library/Sounds` alongside the system sounds.
+
 ## 0.2.1
 
 - New icon, and the extension is published under the `nldong` publisher.

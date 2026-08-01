@@ -2,7 +2,7 @@
   "name": "claude-noti",
   "displayName": "Claude Noti",
   "description": "macOS system notifications when Claude Code needs your permission or input. Click the notification to jump straight back to the right VS Code window.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "nldong",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -64,6 +64,21 @@
       {
         "command": "claudeNoti.showLog",
         "title": "Show Log",
+        "category": "Claude Noti"
+      },
+      {
+        "command": "claudeNoti.chooseSound",
+        "title": "Choose Notification Sound",
+        "category": "Claude Noti"
+      },
+      {
+        "command": "claudeNoti.chooseIcon",
+        "title": "Choose Notification Icon",
+        "category": "Claude Noti"
+      },
+      {
+        "command": "claudeNoti.chooseTimeout",
+        "title": "Choose How Long Notifications Stay",
         "category": "Claude Noti"
       }
     ],

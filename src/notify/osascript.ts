@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 
 import { log } from '../log';
 import type { NotificationContent } from '../routing';
-import type { NotifyOptions, Notifier } from './index';
+import type { NotifyOptions, NotifyResult, Notifier } from './index';
 
 /**
  * Fallback for machines without `alerter`. `osascript` is always present, but
@@ -15,7 +15,11 @@ export class OsascriptNotifier implements Notifier {
   readonly kind = 'osascript' as const;
   readonly supportsClick = false;
 
-  notify(content: NotificationContent, options: NotifyOptions, _onClick: () => void): void {
+  notify(
+    content: NotificationContent,
+    options: NotifyOptions,
+    _onResult: (result: NotifyResult) => void,
+  ): void {
     const parts = [
       `display notification ${quote(content.message)}`,
       `with title ${quote(content.title)}`,

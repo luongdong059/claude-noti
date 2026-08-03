@@ -7,10 +7,21 @@ export interface NotifyOptions {
   sound: string;
 }
 
+/** What the user did with the notification. */
+export type NotifyResult =
+  /** Clicked the body — take me back to that window. */
+  | { kind: 'clicked' }
+  /** Pressed the action button — take me back and show me everything. */
+  | { kind: 'action' };
+
 export interface Notifier {
   readonly kind: 'alerter' | 'osascript';
   /** Whether clicking the notification can call back into the extension. */
   readonly supportsClick: boolean;
-  notify(content: NotificationContent, options: NotifyOptions, onClick: () => void): void;
+  notify(
+    content: NotificationContent,
+    options: NotifyOptions,
+    onResult: (result: NotifyResult) => void,
+  ): void;
   dispose(): void;
 }

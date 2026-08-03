@@ -165,13 +165,26 @@ export interface NotificationContent {
   subtitle: string;
   message: string;
   group: string;
+  /**
+   * The whole of what was cut down to fit the banner, shown when the user asks
+   * to see everything. Absent when the banner already says all there is.
+   */
+  detail?: string;
+  /** Label for the button that reveals `detail`. */
+  action?: string;
 }
 
 const MAX_MESSAGE_LENGTH = 160;
+export const EXPAND_ACTION = 'Show details';
 
 export function describe(event: HookEvent, contextLabel: string): NotificationContent {
   const subtitle = subtitleFor(event);
-  const body = truncate(bodyFor(event), MAX_MESSAGE_LENGTH);
+  const full = bodyFor(event);
+  const body = truncate(full, MAX_MESSAGE_LENGTH);
+  // Only offer the button when pressing it would actually reveal something —
+  // a button that expands to the same sentence is noise.
+  const detail = detailFor(event);
+  const hasMore = detail !== undefined && detail.trim() !== body.trim();
 
   return {
     title: contextLabel ? `Claude Code — ${contextLabel}` : 'Claude Code',
@@ -180,6 +193,7 @@ export function describe(event: HookEvent, contextLabel: string): NotificationCo
     // Grouping by session means a newer notification replaces the older one
     // instead of stacking up while you are away.
     group: `claude-noti-${event.session_id ?? 'unknown'}`,
+    ...(hasMore ? { detail, action: EXPAND_ACTION } : {}),
   };
 }
 
@@ -193,6 +207,20 @@ function bodyFor(event: HookEvent): string {
   return event.message ?? 'Claude needs your attention.';
 }
 
+/** The whole text, for when the banner had to cut it short. */
+function detailFor(event: HookEvent): string | undefined {
+  if (event.hook_event_name === 'PermissionRequest' && event.tool_name === 'AskUserQuestion') {
+    return describeQuestionsInFull(event);
+  }
+  const full = bodyFor(event);
+  return full.length > MAX_MESSAGE_LENGTH ? full : undefined;
+}
+
+function toolField(event: HookEvent, key: string): string | undefined {
+  const value = (event.tool_input ?? {})[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
 /**
  * Says what Claude is asking to do, so the notification is worth reading
  * rather than just being an alert that something happened. `description` is
@@ -202,19 +230,105 @@ function bodyFor(event: HookEvent): string {
 function describeToolRequest(event: HookEvent): string {
   const tool = event.tool_name ?? 'A tool';
   if (tool === 'AskUserQuestion') {
-    return 'Claude is waiting for you to choose an option.';
+    return describeQuestionsBriefly(event);
   }
 
-  const input = event.tool_input ?? {};
-  const field = (key: string): string | undefined =>
-    typeof input[key] === 'string' && (input[key] as string).length > 0
-      ? (input[key] as string)
-      : undefined;
-
-  const filePath = field('file_path') ?? field('path') ?? field('notebook_path');
-  const detail = field('description') ?? field('command') ?? (filePath && path.basename(filePath));
+  const filePath =
+    toolField(event, 'file_path') ?? toolField(event, 'path') ?? toolField(event, 'notebook_path');
+  const detail =
+    toolField(event, 'description') ??
+    toolField(event, 'command') ??
+    (filePath && path.basename(filePath));
 
   return detail ? `${tool}: ${detail}` : `${tool} needs your approval.`;
+}
+
+interface ParsedQuestion {
+  question: string;
+  options: { label: string; description?: string }[];
+  multiSelect: boolean;
+}
+
+/**
+ * Pulls the questions out of an AskUserQuestion payload. Shaped defensively:
+ * this is Claude Code's tool input, not a structure under our control.
+ */
+function parseQuestions(event: HookEvent): ParsedQuestion[] {
+  const raw = (event.tool_input ?? {}).questions;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const parsed: ParsedQuestion[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) {
+      continue;
+    }
+    const record = entry as Record<string, unknown>;
+    const question = typeof record.question === 'string' ? record.question : '';
+    const options: ParsedQuestion['options'] = [];
+    if (Array.isArray(record.options)) {
+      for (const option of record.options) {
+        if (typeof option !== 'object' || option === null) {
+          continue;
+        }
+        const opt = option as Record<string, unknown>;
+        if (typeof opt.label === 'string' && opt.label.length > 0) {
+          options.push({
+            label: opt.label,
+            description: typeof opt.description === 'string' ? opt.description : undefined,
+          });
+        }
+      }
+    }
+    if (question || options.length > 0) {
+      parsed.push({ question, options, multiSelect: record.multiSelect === true });
+    }
+  }
+  return parsed;
+}
+
+/**
+ * What goes on the banner: the question itself and the choices on offer.
+ *
+ * The options cannot be answered from the notification — Claude Code takes
+ * that answer through its own interface, and the PermissionRequest hook can
+ * only allow or deny the whole tool call. Naming them is still worth it: it
+ * tells you whether the question is worth switching windows for.
+ */
+function describeQuestionsBriefly(event: HookEvent): string {
+  const questions = parseQuestions(event);
+  if (questions.length === 0) {
+    return 'Claude is waiting for you to choose an option.';
+  }
+  const first = questions[0];
+  if (!first) {
+    return 'Claude is waiting for you to choose an option.';
+  }
+  const labels = first.options.map((option) => option.label).join(' · ');
+  const extra = questions.length > 1 ? ` (+${questions.length - 1} more)` : '';
+  const head = first.question || 'Claude is waiting for you to choose an option.';
+  return labels ? `${head}${extra}\n${labels}` : `${head}${extra}`;
+}
+
+/** Every question with every option and its description, for the details view. */
+function describeQuestionsInFull(event: HookEvent): string {
+  const questions = parseQuestions(event);
+  if (questions.length === 0) {
+    return 'Claude is waiting for you to choose an option.';
+  }
+  const blocks = questions.map((entry, index) => {
+    const heading = questions.length > 1 ? `${index + 1}. ${entry.question}` : entry.question;
+    const mode = entry.multiSelect ? '  (choose any number)' : '';
+    const options = entry.options
+      .map((option, i) =>
+        option.description
+          ? `  ${i + 1}. ${option.label}\n     ${option.description}`
+          : `  ${i + 1}. ${option.label}`,
+      )
+      .join('\n');
+    return [heading + mode, options].filter(Boolean).join('\n');
+  });
+  return blocks.join('\n\n');
 }
 
 function subtitleFor(event: HookEvent): string {
@@ -238,9 +352,19 @@ function subtitleFor(event: HookEvent): string {
   }
 }
 
+/**
+ * Line breaks are kept — macOS renders a multi-line banner, and putting the
+ * choices on their own line below the question is the whole point of showing
+ * them. Runs of spaces and blank lines are still collapsed, since text pulled
+ * out of an assistant message carries plenty of both.
+ */
 function truncate(text: string, limit: number): string {
-  const flat = text.replace(/\s+/g, ' ').trim();
-  return flat.length <= limit ? flat : `${flat.slice(0, limit - 1)}…`;
+  const tidy = text
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ ?\n ?/g, '\n')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+  return tidy.length <= limit ? tidy : `${tidy.slice(0, limit - 1)}…`;
 }
 
 /** Human-readable label for the notification title: the workspace folder name. */

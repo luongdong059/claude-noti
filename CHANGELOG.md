@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- **A details button on the notification.** A banner holds a line or two, which is not enough for a long command or a question carrying four options. Where something had to be cut, the notification now offers a button that raises the window and shows the whole text.
+- **Questions now say what they are asking.** A choice from Claude used to arrive as "Claude is waiting for you to choose an option" — enough to know something wanted you, not enough to know whether it was worth switching windows for. The banner now carries the question and the option labels, and the details button lists every option with its description.
+
+  Note what this does not do: the options cannot be answered from the notification. Claude Code takes that answer through its own interface, and the `PermissionRequest` hook can only allow or deny the whole tool call, not pick an option within it. Showing the labels as buttons would look like it worked and quietly do nothing, so they are shown as text.
+
 ## 0.3.1
 
 - Groundwork for Windows support: everything OS-specific now sits behind a `Platform` interface in `src/platform/`, leaving the routing, event-filter and settings-patching logic free of any OS branches. No change in behaviour on macOS.

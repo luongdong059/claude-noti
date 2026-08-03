@@ -15,7 +15,8 @@ import { type InstanceRecord, pruneStale, removeSelf, writeSelf } from './ipc/re
 import { log, setLogSink } from './log';
 import type { Notifier } from './notify';
 import { platform } from './platform';
-import { Router } from './router';
+import { Router, showDetail } from './router';
+import { EXPAND_ACTION } from './routing';
 import { chooseIcon, chooseSound, chooseTimeout, disposeSettingsUi } from './settingsui';
 import { StatusBar } from './statusbar';
 
@@ -227,21 +228,32 @@ function sendTestNotification(): void {
     return;
   }
   const settings = readSettings();
+  // Carries a detail button so the test exercises both halves of what a real
+  // notification can do, not just the click.
+  const content = {
+    title: 'Claude Noti',
+    subtitle: 'Test notification',
+    message: notifier.supportsClick
+      ? 'Click this to bring the window back to the front.'
+      : 'Install alerter to make notifications clickable.',
+    group: 'claude-noti-test',
+    detail:
+      'This is what the details button shows: the whole text, with nothing cut ' +
+      'to fit a notification banner.\n\nReal notifications put the command Claude ' +
+      'wants to run here, or the full question with every option it is offering.',
+    action: EXPAND_ACTION,
+  };
   notifier.notify(
-    {
-      title: 'Claude Noti',
-      subtitle: 'Test notification',
-      message: notifier.supportsClick
-        ? 'Click this to bring the window back to the front.'
-        : 'Install alerter to make notifications clickable.',
-      group: 'claude-noti-test',
-    },
+    content,
     { timeoutSeconds: Math.max(30, settings.timeoutSeconds), sound: settings.sound },
-    () => {
+    (result) => {
       void focusWindow({
         workspacePath: currentWorkspaceFile() ?? currentFolders()[0],
         commands: settings.onFocusCommands,
       });
+      if (result.kind === 'action') {
+        showDetail(content);
+      }
     },
   );
   void vscode.window.showInformationMessage(

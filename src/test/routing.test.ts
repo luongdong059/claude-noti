@@ -5,6 +5,7 @@ import type { HookEvent } from '../hooks/payload';
 import type { InstanceRecord } from '../ipc/registry';
 import {
   type EventPolicy,
+  EXPAND_ACTION,
   Throttle,
   claimant,
   contextLabel,
@@ -256,12 +257,98 @@ suite('describe', () => {
     assert.ok(content.message.endsWith('…'));
   });
 
-  test('collapses newlines so the banner stays on one line', () => {
+  test('collapses runs of space and blank lines but keeps single breaks', () => {
     const content = describe(
-      { hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'a\n\n  b' },
+      { hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'a  b\n\n  c' },
       'proj',
     );
-    assert.equal(content.message, 'a b');
+    assert.equal(content.message, 'a b\nc');
+  });
+
+  test('offers a details button only when there is more to read', () => {
+    const short = describe(
+      { hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'short' },
+      'proj',
+    );
+    assert.equal(short.action, undefined);
+    assert.equal(short.detail, undefined);
+
+    const long = describe(
+      { hook_event_name: 'Stop', last_assistant_message: 'x'.repeat(400) },
+      'proj',
+    );
+    assert.equal(long.action, EXPAND_ACTION);
+    assert.equal(long.detail?.length, 400);
+  });
+});
+
+suite('describe for a question with options', () => {
+  const event: HookEvent = {
+    hook_event_name: 'PermissionRequest',
+    tool_name: 'AskUserQuestion',
+    tool_input: {
+      questions: [
+        {
+          question: 'What next?',
+          options: [
+            { label: 'Reservations', description: 'Build the day and week timeline.' },
+            { label: 'Push notifications', description: 'Reconnect the dispatch cron.' },
+          ],
+          multiSelect: false,
+        },
+      ],
+    },
+  };
+
+  test('puts the question and the choices on the banner', () => {
+    const content = describe(event, 'proj');
+    assert.equal(content.subtitle, 'Waiting for your choice');
+    assert.equal(content.message, 'What next?\nReservations · Push notifications');
+  });
+
+  test('keeps every option and its description for the details view', () => {
+    const content = describe(event, 'proj');
+    assert.equal(content.action, EXPAND_ACTION);
+    assert.match(content.detail ?? '', /What next\?/);
+    assert.match(content.detail ?? '', /1\. Reservations/);
+    assert.match(content.detail ?? '', /Build the day and week timeline\./);
+    assert.match(content.detail ?? '', /2\. Push notifications/);
+  });
+
+  test('says how many more questions are waiting', () => {
+    const many: HookEvent = {
+      ...event,
+      tool_input: {
+        questions: [
+          { question: 'First?', options: [{ label: 'A' }] },
+          { question: 'Second?', options: [{ label: 'B' }] },
+        ],
+      },
+    };
+    assert.match(describe(many, 'proj').message, /First\? \(\+1 more\)/);
+  });
+
+  test('marks a question that takes more than one answer', () => {
+    const multi: HookEvent = {
+      ...event,
+      tool_input: {
+        questions: [{ question: 'Which ones?', options: [{ label: 'A' }], multiSelect: true }],
+      },
+    };
+    assert.match(describe(multi, 'proj').detail ?? '', /choose any number/);
+  });
+
+  test('falls back gracefully when the payload carries no questions', () => {
+    const bare: HookEvent = { hook_event_name: 'PermissionRequest', tool_name: 'AskUserQuestion' };
+    assert.equal(describe(bare, 'proj').message, 'Claude is waiting for you to choose an option.');
+  });
+
+  test('ignores malformed entries instead of throwing', () => {
+    const junk: HookEvent = {
+      ...event,
+      tool_input: { questions: [null, 'nope', { question: 'Real?', options: [{ label: 'Yes' }] }] },
+    };
+    assert.equal(describe(junk, 'proj').message, 'Real?\nYes');
   });
 });
 

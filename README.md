@@ -13,6 +13,7 @@ Claude Code sends desktop notifications from Ghostty, Kitty and iTerm2. The VS C
 Claude Noti closes that gap:
 
 - **A system notification** every time Claude asks for permission, waits for your input, or finishes a turn.
+- **It says what is being asked.** The command Claude wants to run, or the question and the options on offer — enough to judge whether it is worth switching windows for. Where that did not fit, a button shows the whole thing.
 - **Click to return.** The click raises the specific window whose workspace the session belongs to, not just whichever window was last in front.
 - **Quiet when you are already looking.** If the relevant window has focus, you get a small status-bar message instead of a banner.
 - **One notification, not five.** With several windows open, exactly one of them claims each session.

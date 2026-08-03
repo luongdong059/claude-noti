@@ -2,7 +2,7 @@ import { type ChildProcess, execFile, spawn } from 'node:child_process';
 
 import { log } from '../log';
 import type { NotificationContent } from '../routing';
-import type { NotifyOptions, Notifier } from './index';
+import type { NotifyOptions, NotifyResult, Notifier } from './index';
 
 /**
  * Each live notification holds one blocked `alerter` process, so a runaway
@@ -11,8 +11,13 @@ import type { NotifyOptions, Notifier } from './index';
  */
 const MAX_LIVE = 5;
 
-/** Result strings alerter prints when the user clicks the notification body. */
-const CLICK_RESULTS = ['@CONTENTCLICKED', '@ACTIONCLICKED'];
+/** What alerter prints when the notification body itself is clicked. */
+const CONTENT_CLICKED = '@CONTENTCLICKED';
+/**
+ * What it prints when an action button is pressed. Some builds echo the
+ * action's own label instead of this marker, so both are treated as an action.
+ */
+const ACTION_CLICKED = '@ACTIONCLICKED';
 
 /**
  * Sends notifications through `alerter`, which is built on the modern
@@ -38,7 +43,11 @@ export class AlerterNotifier implements Notifier {
     private readonly appIcon: string | undefined,
   ) {}
 
-  notify(content: NotificationContent, options: NotifyOptions, onClick: () => void): void {
+  notify(
+    content: NotificationContent,
+    options: NotifyOptions,
+    onResult: (result: NotifyResult) => void,
+  ): void {
     this.retire(content.group);
     this.enforceLimit();
 
@@ -54,6 +63,9 @@ export class AlerterNotifier implements Notifier {
       '--timeout',
       String(options.timeoutSeconds),
     ];
+    if (content.action) {
+      args.push('--actions', content.action);
+    }
     if (this.sender) {
       args.push('--sender', this.sender);
     }
@@ -91,8 +103,11 @@ export class AlerterNotifier implements Notifier {
       this.live.delete(content.group);
       const result = stdout.trim();
       log.debug('alerter result for', content.group, '→', result || '(none)');
-      if (CLICK_RESULTS.some((marker) => result.includes(marker))) {
-        onClick();
+
+      if (result.includes(ACTION_CLICKED) || (content.action && result === content.action)) {
+        onResult({ kind: 'action' });
+      } else if (result.includes(CONTENT_CLICKED)) {
+        onResult({ kind: 'clicked' });
       }
     });
   }

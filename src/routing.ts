@@ -392,6 +392,38 @@ export function contextLabel(
   return workspaceFolders[0] ? path.basename(workspaceFolders[0]) : '';
 }
 
+/**
+ * A modal dialog does not scroll. Given enough text it grows past the bottom
+ * of the screen and takes its buttons with it, leaving no way to dismiss it —
+ * so what goes into one has to be bounded up front. Deliberately conservative:
+ * it must fit the smallest screen this might run on, alongside a title and
+ * buttons.
+ */
+const MAX_MODAL_LINES = 16;
+const MAX_MODAL_CHARS = 800;
+
+export interface FittedDetail {
+  text: string;
+  /** True when text was left out and needs somewhere else to be read. */
+  truncated: boolean;
+}
+
+export function fitForModal(detail: string): FittedDetail {
+  const lines = detail.split('\n');
+  let text = detail;
+  let truncated = false;
+
+  if (lines.length > MAX_MODAL_LINES) {
+    text = lines.slice(0, MAX_MODAL_LINES).join('\n');
+    truncated = true;
+  }
+  if (text.length > MAX_MODAL_CHARS) {
+    text = text.slice(0, MAX_MODAL_CHARS);
+    truncated = true;
+  }
+  return truncated ? { text: `${text.trimEnd()}\n…`, truncated } : { text, truncated };
+}
+
 /** Drops repeats for the same session that arrive inside the configured window. */
 export class Throttle {
   private readonly last = new Map<string, number>();

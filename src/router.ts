@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 
 import { readSettings } from './config';
+import { showDetail } from './detailview';
 import { focusWindow } from './focus';
 import type { HookEvent } from './hooks/payload';
 import { log } from './log';
 import { readAll } from './ipc/registry';
 import type { Notifier } from './notify';
 import {
-  type NotificationContent,
   type SkipReason,
   Throttle,
   claimant,
@@ -118,7 +118,7 @@ export class Router {
           commands: readSettings().onFocusCommands,
         });
         if (result.kind === 'action' && content.detail) {
-          showDetail(content);
+          void showDetail(content);
         }
       },
     );
@@ -184,17 +184,3 @@ export class Router {
   }
 }
 
-/**
- * Shows everything the banner had to leave out.
- *
- * A macOS notification gives a couple of lines, which is not enough for a
- * question with four options each carrying a paragraph of explanation. The
- * modal is deliberate: it arrives only because the user pressed a button
- * asking for it, and a non-modal message would truncate the text again.
- */
-export function showDetail(content: NotificationContent): void {
-  void vscode.window.showInformationMessage(content.subtitle, {
-    modal: true,
-    detail: content.detail,
-  });
-}

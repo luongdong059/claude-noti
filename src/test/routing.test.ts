@@ -11,6 +11,7 @@ import {
   contextLabel,
   describe,
   fallbackClaimant,
+  fitForModal,
   matchLength,
   passesEventPolicy,
 } from '../routing';
@@ -363,6 +364,34 @@ suite('contextLabel', () => {
 
   test('falls back to the working directory name', () => {
     assert.equal(contextLabel('/somewhere/deep', ['/a'], undefined), 'deep');
+  });
+});
+
+suite('fitForModal', () => {
+  test('leaves short text alone', () => {
+    const fitted = fitForModal('one\ntwo');
+    assert.equal(fitted.text, 'one\ntwo');
+    assert.equal(fitted.truncated, false);
+  });
+
+  test('caps the number of lines', () => {
+    // A modal cannot scroll: too many lines pushes its buttons off the bottom
+    // of the screen and the dialog can no longer be dismissed at all.
+    const fitted = fitForModal(Array.from({ length: 60 }, (_, i) => `line ${i}`).join('\n'));
+    assert.equal(fitted.truncated, true);
+    assert.ok(fitted.text.split('\n').length <= 17, 'kept at most the line budget plus the ellipsis');
+    assert.ok(fitted.text.endsWith('…'));
+  });
+
+  test('caps the number of characters even on a single line', () => {
+    const fitted = fitForModal('x'.repeat(5000));
+    assert.equal(fitted.truncated, true);
+    assert.ok(fitted.text.length < 1000);
+  });
+
+  test('reports truncation so the caller can offer the full text elsewhere', () => {
+    assert.equal(fitForModal('short').truncated, false);
+    assert.equal(fitForModal('y'.repeat(2000)).truncated, true);
   });
 });
 

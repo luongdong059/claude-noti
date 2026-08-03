@@ -15,7 +15,8 @@ import { type InstanceRecord, pruneStale, removeSelf, writeSelf } from './ipc/re
 import { log, setLogSink } from './log';
 import type { Notifier } from './notify';
 import { platform } from './platform';
-import { Router, showDetail } from './router';
+import { registerDetailView, showDetail } from './detailview';
+import { Router } from './router';
 import { EXPAND_ACTION } from './routing';
 import { chooseIcon, chooseSound, chooseTimeout, disposeSettingsUi } from './settingsui';
 import { StatusBar } from './statusbar';
@@ -59,6 +60,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   statusBar = new StatusBar(context.workspaceState);
   context.subscriptions.push(statusBar);
+  registerDetailView(context);
 
   const rebuildNotifier = () => {
     notifier = host.createNotifier(readSettings());

@@ -7,6 +7,7 @@
 #   ./scripts/publish.sh patch          # 0.2.1 -> 0.2.2
 #   ./scripts/publish.sh minor          # 0.2.1 -> 0.3.0
 #   ./scripts/publish.sh 1.0.0          # an exact version
+#   ./scripts/publish.sh current        # release the version already in package.json
 #   ./scripts/publish.sh patch --local  # also publish from here, without waiting for CI
 #
 set -euo pipefail
@@ -21,7 +22,7 @@ die() { printf '\033[31m✗ %s\033[0m\n' "$1" >&2; exit 1; }
 step() { printf '\033[1m→ %s\033[0m\n' "$1"; }
 ok() { printf '\033[32m  ✓ %s\033[0m\n' "$1"; }
 
-[ -n "$BUMP" ] || die "Thiếu tham số. Dùng: $0 patch|minor|major|<version> [--local]"
+[ -n "$BUMP" ] || die "Thiếu tham số. Dùng: $0 patch|minor|major|<version>|current [--local]"
 
 # --- Node 20+ ------------------------------------------------------------
 # `node` on this machine can resolve to Laravel Herd's bundled v18, which is
@@ -46,14 +47,24 @@ ok "main sạch và khớp với origin"
 
 # --- Phiên bản -----------------------------------------------------------
 CURRENT="$(node -p "require('./package.json').version")"
-NEW="$(npm version "$BUMP" --no-git-tag-version --allow-same-version | tail -1 | tr -d 'v')"
-# npm has already written package.json; undo it if anything below fails.
 restore() { git checkout -- package.json package-lock.json 2>/dev/null || true; }
-trap restore ERR
 
-[ "$NEW" != "$CURRENT" ] || { restore; die "Phiên bản không đổi ($CURRENT). Chọn mức bump khác."; }
+# `current` releases whatever package.json already says. Needed because the
+# version often gets bumped while the work is being done, which leaves nothing
+# for a bump to do and no way to tag what is already there.
+if [ "$BUMP" = "current" ]; then
+  NEW="$CURRENT"
+  ok "phát hành bản đang có: $NEW"
+else
+  NEW="$(npm version "$BUMP" --no-git-tag-version --allow-same-version | tail -1 | tr -d 'v')"
+  # npm has already written package.json; undo it if anything below fails.
+  trap restore ERR
+  [ "$NEW" != "$CURRENT" ] || { restore; die "Phiên bản không đổi ($CURRENT). Chọn mức bump khác, hoặc 'current'."; }
+  ok "$CURRENT → $NEW"
+fi
+
 git tag -l "v$NEW" | grep -q . && { restore; die "Tag v$NEW đã tồn tại."; }
-ok "$CURRENT → $NEW"
+git ls-remote --tags origin "refs/tags/v$NEW" | grep -q . && { restore; die "Tag v$NEW đã có trên origin."; }
 
 # --- CHANGELOG -----------------------------------------------------------
 # A release with no changelog entry is a release nobody can tell apart from
@@ -94,7 +105,13 @@ esac
 # --- Phát hành -----------------------------------------------------------
 step "Commit và tag"
 git add package.json package-lock.json CHANGELOG.md
-git commit -q -m "release: v$NEW"
+# With `current` there may be nothing to commit — the version and changelog
+# were written earlier. Tag the commit that is already there.
+if git diff --cached --quiet; then
+  ok "không có thay đổi để commit, gắn tag lên commit hiện tại"
+else
+  git commit -q -m "release: v$NEW"
+fi
 git tag -a "v$NEW" -m "v$NEW"
 git push -q origin main --follow-tags
 ok "đã push v$NEW"

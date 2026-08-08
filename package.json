@@ -2,7 +2,7 @@
   "name": "claude-noti",
   "displayName": "Claude Noti",
   "description": "macOS system notifications when Claude Code needs your permission or input. Click the notification to jump straight back to the right VS Code window.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "nldong",
   "license": "MIT",
   "icon": "images/icon.png",

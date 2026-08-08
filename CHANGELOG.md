@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+- Rewrote the Marketplace page around using the extension rather than building it: what each setting is for and when you would change it, the two macOS settings that catch everyone out, and what the extension writes on your machine. How it is put together moved to CONTRIBUTING.md, where it is of use to the people it is written for.
+
 ## 0.4.1
 
 - Fixed the details dialog trapping you. A modal in VS Code does not scroll, so a long detail grew past the bottom of the screen and took its buttons with it — leaving no way to close it. The dialog now holds only what is certain to fit, and offers **Open full text** to read the rest in an editor tab, which scrolls, can be copied from, and closes like any other tab.

@@ -1,128 +1,140 @@
 # Claude Noti
 
-[![CI](https://github.com/luongdong059/claude-noti/actions/workflows/ci.yml/badge.svg)](https://github.com/luongdong059/claude-noti/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/luongdong059/claude-noti)](https://github.com/luongdong059/claude-noti/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+You give Claude Code a task and switch to something else. Claude hits a command it needs permission for, and stops. You find out twenty minutes later.
 
-Get a real macOS notification when Claude Code needs you — and click it to land back in the right VS Code window.
+Claude Noti puts that moment on your screen, wherever you are, and gets you back to the right window in one click.
 
-## Why
+## What it does
 
-Claude Code sends desktop notifications from Ghostty, Kitty and iTerm2. The VS Code integrated terminal is not on that list, so when you kick off a task and switch to another app, a permission prompt can sit there unanswered for a long time.
+- **Tells you the moment Claude needs you** — a permission request, a question, or the end of a turn.
+- **Says what is being asked.** The command Claude wants to run, or the question and the options on offer. Enough to decide whether it is worth switching windows for, without switching windows to find out.
+- **One click puts you back.** Not "brings VS Code forward" — it raises the specific window that session belongs to, even with a dozen open.
+- **Stays quiet when you are already there.** If you are looking at that window, you get a line in the status bar instead of a banner across your screen.
+- **One notification, not one per window.** However many windows are open, exactly one of them speaks up.
 
-Claude Noti closes that gap:
+## Before you start
 
-- **A system notification** every time Claude asks for permission, waits for your input, or finishes a turn.
-- **It says what is being asked.** The command Claude wants to run, or the question and the options on offer — enough to judge whether it is worth switching windows for. Where that did not fit, a button shows the whole thing.
-- **Click to return.** The click raises the specific window whose workspace the session belongs to, not just whichever window was last in front.
-- **Quiet when you are already looking.** If the relevant window has focus, you get a small status-bar message instead of a banner.
-- **One notification, not five.** With several windows open, exactly one of them claims each session.
-
-## Requirements
-
-- macOS 13 or later
-- [Claude Code](https://claude.com/claude-code)
-- [`alerter`](https://github.com/vjeantet/alerter) for clickable notifications:
-
-  ```sh
-  brew install vjeantet/tap/alerter
-  ```
-
-  Without it the extension falls back to `osascript`, which can still show a notification but cannot report a click — so the "jump back to the window" behaviour is unavailable.
-
-Then open System Settings → Notifications and set **Terminal** to **Alerts**.
-
-Two things about that are surprising enough to be worth stating plainly. There is no "alerter" entry to find: alerter posts under `com.apple.Terminal`, so macOS files its notifications under **Terminal**. And the style has to be **Alerts**, not **Banners** — banners disappear after a few seconds, so the one notification you needed is gone before you look back at the screen.
-
-## Install
-
-Until the Marketplace listing is live, grab the `.vsix` from the [latest release](https://github.com/luongdong059/claude-noti/releases/latest):
+You need macOS 13 or later, [Claude Code](https://claude.com/claude-code), and one small command-line tool:
 
 ```sh
-code --install-extension claude-noti.vsix
+brew install vjeantet/tap/alerter
 ```
 
-## Setup
+Without `alerter` the extension falls back to `osascript`. That still shows a notification, but macOS gives it no way to report a click — so the "click to get back" part stops working, which is most of the point.
+
+### One setting in macOS
+
+Open **System Settings → Notifications**, find **Terminal**, and set its style to **Alerts**.
+
+Two things about that are worth saying plainly, because both surprise people:
+
+- **Look under Terminal, not "alerter".** There is no "alerter" entry and there never will be — it posts under Terminal's identity, so Terminal's settings govern it. The trade-off is real: this also changes how Terminal.app's own notifications behave.
+- **Alerts, not Banners.** Banners vanish after a few seconds. If you are away from the machine — the entire situation this extension exists for — a banner is gone before you look back.
+
+## Getting started
 
 1. Install the extension.
-2. Accept the prompt to install hooks, or run **Claude Noti: Install Claude Code Hooks** from the command palette.
-3. Start a new Claude Code session — hooks are read at session start.
-4. Run **Claude Noti: Send Test Notification** to confirm everything works.
+2. Say yes when it offers to install the Claude Code hooks, or run **Claude Noti: Install Claude Code Hooks** from the command palette.
+3. **Start a new Claude Code session.** Hooks are read when a session starts, so an already-running one will not pick them up.
+4. Run **Claude Noti: Send Test Notification**, switch to another app, and check it arrives.
 
-If nothing appears, run **Claude Noti: Run Diagnostics**. It checks the binary, the hook registration, the IPC socket and the window registry, and prints what is wrong.
-
-## How it works
-
-Installing hooks writes a small script to `~/.claude-noti/hook.sh` and registers it for Claude Code's `Notification` and `Stop` events. When Claude Code fires one, the script forwards the payload to every open VS Code window over a Unix domain socket in a `0700` directory under your home directory. No TCP port is opened and nothing leaves your machine.
-
-Each window then decides independently whether the session belongs to it, by comparing the reported working directory against its own workspace folders — deepest match wins, lowest process id breaks ties. Because every window runs the same comparison over the same registry, exactly one of them acts, with no coordination needed.
+If it does not, **Claude Noti: Run Diagnostics** checks every link in the chain and prints which one is broken.
 
 ## Settings
 
-| Setting | Default | What it does |
+Everything is under `claudeNoti` in VS Code settings. Three of them also have pickers in the command palette, because their values are impossible to guess.
+
+### What you get told about
+
+Turn off whatever you find noisy. Each is independent.
+
+| Setting | Default | Fires when |
 | --- | --- | --- |
-| `claudeNoti.enabled` | `true` | Master switch |
-| `claudeNoti.events.permissionPrompt` | `true` | Claude is asking to run a tool, or asking you to pick an option |
-| `claudeNoti.events.idlePrompt` | `true` | Claude has been waiting for input |
-| `claudeNoti.events.agentNeedsInput` | `true` | A subagent or MCP server needs an answer |
-| `claudeNoti.events.stop` | `true` | A turn finished (subagent completions are always ignored) |
-| `claudeNoti.suppressWhenFocused` | `true` | Stay quiet when the window already has focus |
-| `claudeNoti.notifierPath` | `""` | Override the path to `alerter` |
-| `claudeNoti.impersonateEditor` | `false` | Show the editor's icon on the notification. Recent macOS releases may suppress notifications from an impersonated sender, so try it with the test command before relying on it |
-| `claudeNoti.notificationIcon` | `""` | Image on the notification. Empty uses the extension's bell icon; a path uses your own; `none` keeps Terminal's |
-| `claudeNoti.sound` | `""` | Sound name, e.g. `default` or `Glass` |
-| `claudeNoti.timeoutSeconds` | `0` | Auto-close after N seconds; `0` waits until you act on it |
-| `claudeNoti.minIntervalMs` | `1500` | Drop repeats for the same session |
-| `claudeNoti.notifyUnmatchedSessions` | `false` | Also notify for sessions outside any open workspace |
-| `claudeNoti.onFocusCommands` | `[]` | Commands to run after the window comes forward, e.g. `workbench.action.terminal.focus` |
-| `claudeNoti.hookScope` | `"user"` | Install hooks globally or per project |
+| `events.permissionPrompt` | `true` | Claude asks to run a tool, or puts a set of options in front of you |
+| `events.idlePrompt` | `true` | Claude has been waiting on you for a while |
+| `events.agentNeedsInput` | `true` | A subagent or an MCP server needs an answer |
+| `events.stop` | `true` | A turn finished |
+| `enabled` | `true` | Master switch for all of it |
+
+`events.stop` is the one people turn off first — it fires at the end of every turn, which is useful when you step away and noise when you do not. Completions from subagents are always ignored, since a single turn can spawn many.
+
+### How it looks and sounds
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| `sound` | `""` (silent) | A macOS sound name such as `Glass` or `Sosumi` |
+| `notificationIcon` | `""` | Empty uses the bell icon; give a path for your own image; `none` keeps Terminal's |
+| `timeoutSeconds` | `0` | `0` means the notification waits until you deal with it |
+
+Use **Claude Noti: Choose Notification Sound** rather than typing a name — it plays each sound as you move down the list, which is the only sensible way to pick one. It includes anything you have put in `~/Library/Sounds`.
+
+`timeoutSeconds: 0` is deliberate. A notification that expires while you are in another application is one you never see, and that is precisely when you needed it. Set a number only if you find them piling up.
+
+### When it should stay quiet
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| `suppressWhenFocused` | `true` | No banner when you are already looking at that window |
+| `minIntervalMs` | `1500` | Ignores repeats from the same session inside this window |
+
+There is also a bell in the status bar. Click it to mute this window when you want to work undisturbed for a while; it does not persist across restarts, so you cannot accidentally leave it off forever.
+
+### The rest
+
+Most people never touch these.
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| `hookScope` | `"user"` | Register hooks for every project, or only this one |
+| `notifyUnmatchedSessions` | `false` | Also notify for Claude sessions running outside any open workspace |
+| `onFocusCommands` | `[]` | Commands to run after the window comes forward, e.g. `workbench.action.terminal.focus` to land in the terminal |
+| `notifierPath` | `""` | Point at `alerter` yourself if it is somewhere unusual |
+| `impersonateEditor` | `false` | Borrow the editor's icon. **Likely to stop notifications appearing at all** — macOS only displays notifications from a sender it recognises. Test before relying on it |
 
 ## Commands
 
-| Command | Purpose |
+| Command | What it does |
 | --- | --- |
-| Claude Noti: Install Claude Code Hooks | Register the hooks with Claude Code |
-| Claude Noti: Remove Claude Code Hooks | Undo that, leaving other hooks alone |
-| Claude Noti: Send Test Notification | Check the notifier and the click path |
-| Claude Noti: Toggle Mute | Silence this window for a while |
-| Claude Noti: Run Diagnostics | Report what is and is not working |
-| Claude Noti: Show Log | Open the output channel |
-| Claude Noti: Choose Notification Sound | Pick a sound, hearing each one as you move through the list |
-| Claude Noti: Choose Notification Icon | Use the bell, Terminal's icon, or an image of your own |
-| Claude Noti: Choose How Long Notifications Stay | Wait for you, or auto-close after a set time |
+| Send Test Notification | Checks the whole chain, including the click |
+| Run Diagnostics | Reports which link is broken, and why |
+| Choose Notification Sound | Pick a sound, hearing each as you go |
+| Choose Notification Icon | The bell, Terminal's icon, or your own image |
+| Choose How Long Notifications Stay | Wait for you, or close after a set time |
+| Toggle Mute | Silence this window for a while |
+| Install / Remove Claude Code Hooks | Register with Claude Code, or undo it |
+| Show Log | Open the output channel |
 
-The last three write to the same settings listed above. They exist because none of those values are guessable: a sound is a bare macOS name like `Sosumi`, and an icon is an absolute path. Picking a sound plays it as you scroll, which is the only sensible way to choose one.
+## What it changes on your machine
 
-## Notes on your Claude Code settings
+Worth knowing, since this extension asks Claude Code to run a script:
 
-The installer edits `~/.claude/settings.json` (or `.claude/settings.json` for project scope). It refuses to write if the file is not valid JSON, keeps a `.claude-noti.bak` copy of the previous contents, adds nothing that is already there, and on removal takes out only its own entries.
+- It writes one shell script to `~/.claude-noti/` and registers it in `~/.claude/settings.json` so Claude Code will run it. **Remove Claude Code Hooks** takes out only its own entries and leaves anything else you have in there alone. It keeps a `.bak` copy before writing, and refuses to touch the file at all if it is not valid JSON.
+- Windows talk to each other over a socket in a directory only your account can read. No network port is opened, and nothing leaves your machine.
 
-## Troubleshooting
+## When it does not work
 
-**Nothing happens at all.** Hooks are read when a Claude Code session starts, so restart the session after installing them. Then run diagnostics.
+**Nothing happens at all.** Hooks are read when a Claude Code session starts. Restart the session, then run diagnostics.
 
-**Notifications appear but clicking does nothing.** `alerter` is missing and the `osascript` fallback is in use. Install `alerter`.
+**Notifications appear, but clicking does nothing.** `alerter` is missing and the fallback is in use. Install it with the brew command above.
 
-**No notification ever appears.** First check whether they are arriving at all: click the clock in the menu bar to open Notification Center. If the messages are sitting there, delivery is working and only the alert style is wrong — open System Settings → Notifications → **Terminal** and switch it to **Alerts**. If Notification Center is empty too, a Focus mode is filtering them or notifications are not allowed for Terminal.
+**No notification appears anywhere.** Click the clock in the menu bar to open Notification Center. If the messages are sitting there, delivery works and only the alert style is wrong — set **Terminal** to **Alerts**. If Notification Center is empty too, a Focus mode is filtering them.
 
-**Notifications reach Notification Center, the settings are right, and still nothing appears on screen.** macOS's own `NotificationCenter` agent can wedge into a state where it files notifications away without ever drawing them. Nothing in System Settings shows this, and no amount of changing the alert style fixes it. Restart the agent:
+**They reach Notification Center, the settings are right, and still nothing appears on screen.** macOS's own notification agent can wedge into a state where it files notifications away without ever drawing them. Nothing in System Settings reveals this and no amount of changing the style fixes it. Restart the agent:
 
 ```sh
 killall NotificationCenter
 ```
 
-It relaunches immediately under launchd, and banners come back. Worth trying before assuming anything is wrong with a notification tool — it applies to every app on the machine, not just this one.
+It relaunches by itself and banners come back. Worth trying before assuming a notification tool is at fault — this affects every app on the machine, not just this one.
 
-**There is no "alerter" entry in System Settings.** There never will be. alerter posts under the `com.apple.Terminal` bundle identifier, so its notifications are governed by the **Terminal** entry. Changing that entry does also change how real Terminal.app notifications behave, which is the price of using a command-line notifier.
+**Two notifications for one prompt.** That should not happen. Please [open an issue](https://github.com/luongdong059/claude-noti/issues) with the output of **Run Diagnostics** from both windows.
 
-**Two notifications for one prompt.** Two windows both claim the session, which should not happen — please open an issue with the output of **Run Diagnostics** from both windows.
+## Windows and Linux
+
+Not yet — macOS only. On another OS the extension tells you so and stays out of the way.
 
 ## Contributing
 
-`npm ci` then `npm run watch`, and press F5 in VS Code to launch an Extension Development Host. `npm test` runs the linter and the unit suite; `npm run typecheck` is separate.
+Bug reports and pull requests are welcome at [github.com/luongdong059/claude-noti](https://github.com/luongdong059/claude-noti). See [CONTRIBUTING.md](CONTRIBUTING.md) for how it is put together and how to run it locally.
 
-Release steps and Marketplace setup are in [PUBLISHING.md](PUBLISHING.md).
-
-## Licence
-
-MIT
+MIT licensed.
